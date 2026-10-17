@@ -1,0 +1,1942 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<title>Kata Satu</title>
+<meta name="description" content="One Indonesian word a day, with spaced-repetition reviews.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon/apple-touch-icon.png">
+<link rel="icon" href="icon/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kata Satu">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#09090A">
+<style>
+/* ==========================================================================
+   Kata Satu — built on the NXT design system (see NXT/web/css/app.css):
+   near-black canvas, surfaces a clear step lighter so tiles read without
+   borders, one lime accent that only ever carries meaning, generous radii,
+   tabular numerals, real spring easings. Single-theme by design, like NXT.
+   Layout: a sticky top bar, one card-stack screen, a fixed bottom action bar.
+   ========================================================================== */
+:root{
+  --bg:#09090A;
+  --surface:#19191C; --surface-2:#212125; --surface-3:#2B2B30;
+  --line:rgba(255,255,255,.06); --line-strong:rgba(255,255,255,.14);
+  --text:#FAFAFA; --text-2:#9B9BA3; --text-3:#6B6B74; --text-4:#4A4A52;
+
+  --accent:#C8F94E; --accent-ink:#0C1004;
+  --accent-soft:rgba(200,249,78,.13); --accent-line:rgba(200,249,78,.28);
+  --neg:#FF6B5A; --neg-soft:rgba(255,107,90,.13);
+  --warn:#FFB648; --warn-soft:rgba(255,182,72,.13);
+
+  --r-sm:16px; --r:22px; --r-lg:28px; --r-pill:999px; --gutter:20px;
+  --font:-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+
+  --ease:cubic-bezier(.32,.72,0,1);
+  --ease-spring:cubic-bezier(.34,1.32,.64,1);
+  color-scheme:dark;
+}
+/* Real springs where the browser can take them — the step response of a damped
+   spring, so things settle with weight instead of wobbling. */
+@supports (animation-timing-function: linear(0,1)){
+  :root{
+    --ease-spring:linear(0, .0581, .1924, .3569, .5215, .6687, .79, .8832, .9501, .9945, 1.021, 1.0343, 1.0384, 1.0367, 1.0318, 1.0255, 1.0191, 1.0134, 1.0086, 1.0049, 1.0022, 1.0004, .9993, .9987, 1);
+  }
+}
+
+*{box-sizing:border-box; margin:0; padding:0}
+html,body{height:100%; background:var(--bg)}
+body{
+  font-family:var(--font); color:var(--text); font-size:16px; line-height:1.45;
+  -webkit-font-smoothing:antialiased; -webkit-tap-highlight-color:transparent;
+  overscroll-behavior-y:contain;
+}
+button{font:inherit; color:inherit; background:none; border:none; cursor:pointer; -webkit-appearance:none; appearance:none}
+.num{font-variant-numeric:tabular-nums; font-feature-settings:'tnum' 1}
+::selection{background:var(--accent-soft)}
+
+#app{
+  min-height:100%; display:flex; flex-direction:column;
+  max-width:560px; margin:0 auto; width:100%;
+  padding-bottom:calc(16px + env(safe-area-inset-bottom, 0px));
+}
+.pad{
+  padding-left:max(var(--gutter), env(safe-area-inset-left, 0px));
+  padding-right:max(var(--gutter), env(safe-area-inset-right, 0px));
+}
+
+/* top bar */
+.topbar{
+  position:sticky; top:env(safe-area-inset-top, 0px); z-index:30;
+  display:flex; align-items:center; gap:10px;
+  padding-block:10px;
+  background:rgba(9,9,10,.78);
+  backdrop-filter:saturate(170%) blur(20px); -webkit-backdrop-filter:saturate(170%) blur(20px);
+}
+.pips{display:flex; gap:6px; align-items:center; flex:1 1 auto; min-width:0}
+.pip{width:7px; height:7px; border-radius:var(--r-pill); background:var(--surface-3); transition:transform 400ms var(--ease-spring), background 200ms var(--ease)}
+.pip.done{background:var(--accent)}
+.pip.now{background:var(--accent); transform:scale(1.6)}
+.day{font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3)}
+.iconbtn{
+  width:42px; height:42px; flex:0 0 42px; display:grid; place-items:center;
+  border-radius:var(--r-pill); color:var(--text-2); background:var(--surface);
+  transition:background 140ms var(--ease), color 140ms var(--ease), transform 140ms var(--ease);
+}
+.iconbtn:active{background:var(--surface-3); color:var(--text); transform:scale(.93)}
+.iconbtn svg{width:19px; height:19px}
+
+main{flex:1 1 auto; padding-block:26px 20px; min-width:0}
+.screen{animation:fade 220ms var(--ease)}
+@keyframes fade{from{opacity:0} to{opacity:1}}
+
+/* type */
+.label{font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--accent)}
+.label-quiet{color:var(--text-3)}
+.hero{font-size:46px; font-weight:780; letter-spacing:-.042em; line-height:1; text-wrap:balance}
+.title{font-size:20px; font-weight:700; letter-spacing:-.022em}
+.ask{font-size:27px; font-weight:760; letter-spacing:-.03em; line-height:1.15; text-wrap:balance}
+.ask em{font-style:normal; color:var(--accent)}
+/* Accent inside running text: the taught word in its own sentence, the number
+   that measures progress. Never used for emphasis that carries no meaning. */
+.hl{color:var(--accent); font-weight:inherit}
+.verdict .hl{font-weight:700}
+.subtitle{font-size:15px; color:var(--text-2)}
+.meta{font-size:13px; color:var(--text-3)}
+
+.stack>*+*{margin-top:12px}
+.stack-l>*+*{margin-top:20px}
+
+/* cards */
+.card{background:var(--surface); border-radius:var(--r); padding:18px}
+.card-lg{border-radius:var(--r-lg); padding:22px}
+.divider{height:1px; background:var(--line)}
+
+.gloss{font-size:17px; color:var(--text-2); margin-top:8px}
+.ex{font-size:16px; font-weight:600; letter-spacing:-.01em}
+.exEn{font-size:14px; color:var(--text-3); margin-top:3px}
+.note{font-size:13.5px; color:var(--text-2); line-height:1.5}
+
+/* answers */
+.opts{display:flex; flex-direction:column; gap:10px; margin-top:22px}
+.opt{
+  width:100%; text-align:left; display:flex; align-items:center; gap:10px;
+  background:var(--surface); border-radius:var(--r); padding:17px 18px;
+  font-size:16px; font-weight:600; letter-spacing:-.01em; color:var(--text);
+  transition:transform 160ms var(--ease), background 160ms var(--ease), box-shadow 160ms var(--ease);
+}
+.opt:active{transform:scale(.975); background:var(--surface-2)}
+.opt .mark{width:18px; flex:0 0 18px; font-size:13px; opacity:0; transition:opacity 150ms var(--ease)}
+.opt.right{background:var(--accent-soft); box-shadow:inset 0 0 0 1px var(--accent-line); color:var(--accent)}
+.opt.right .mark{opacity:1}
+.opt.wrong{background:var(--neg-soft); box-shadow:inset 0 0 0 1px rgba(255,107,90,.3); color:var(--neg)}
+.opt.wrong .mark{opacity:1}
+.opt.dim{opacity:.4}
+@keyframes nudge{20%{transform:translateX(-6px)} 45%{transform:translateX(6px)} 70%{transform:translateX(-3px)} 100%{transform:none}}
+.opt.shake{animation:nudge .36s var(--ease)}
+
+.verdict{margin-top:20px; font-size:15px; font-weight:650; letter-spacing:-.01em}
+.verdict.ok{color:var(--accent)}
+.verdict.no{color:var(--neg)}
+
+/* stats */
+.tiles{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:20px}
+.tile{background:var(--surface); border-radius:var(--r); padding:18px; min-height:104px; display:flex; flex-direction:column; justify-content:space-between}
+.tile-num{font-size:34px; font-weight:760; letter-spacing:-.04em; line-height:1}
+.tile-num small{font-size:14px; font-weight:600; color:var(--text-3); letter-spacing:-.01em}
+.tile-label{font-size:13px; font-weight:600; color:var(--text-2); letter-spacing:-.01em}
+.streak{display:flex; align-items:baseline; gap:12px; margin-top:10px}
+.streak b{font-size:56px; font-weight:780; letter-spacing:-.045em; line-height:1}
+.streak span{color:var(--text-3); font-size:15px}
+
+/* bottom action bar */
+.bottombar{
+  position:sticky; bottom:0; z-index:40;
+  display:flex; flex-direction:column; gap:10px;
+  padding-block:14px calc(6px + env(safe-area-inset-bottom, 0px));
+  background:linear-gradient(to top, rgba(9,9,10,.98) 55%, rgba(9,9,10,0));
+}
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  min-height:56px; padding:0 24px; border-radius:var(--r-pill);
+  font-size:16px; font-weight:650; letter-spacing:-.005em;
+  background:var(--surface); color:var(--text);
+  transition:transform 260ms var(--ease-spring), background 150ms var(--ease), opacity 150ms var(--ease);
+}
+.btn:active{transform:scale(.965); transition-duration:90ms}
+.btn-primary{background:var(--accent); color:var(--accent-ink); font-weight:700; letter-spacing:-.01em}
+.btn-primary:active{filter:brightness(.9)}
+.btn-ghost{background:var(--surface); color:var(--text-2)}
+.btn-danger{background:var(--neg-soft); color:var(--neg)}
+.btn-sm{min-height:46px; font-size:14.5px}
+/* The action bar is the one place a button owns the full width. */
+.bottombar .btn{display:flex; width:100%}
+
+/* settings */
+.set{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:14px 0; flex-wrap:wrap}
+.set+.set{border-top:1px solid var(--line)}
+.set label{font-size:15px; font-weight:600; letter-spacing:-.01em}
+.seg{display:flex; flex-wrap:wrap; padding:4px; background:var(--surface); border-radius:var(--r-pill); gap:2px; max-width:100%}
+.seg button{
+  min-height:38px; padding:0 13px; border-radius:var(--r-pill);
+  font-size:14px; font-weight:650; letter-spacing:-.01em;
+  color:var(--text-3); transition:color 200ms var(--ease), background 200ms var(--ease);
+}
+.seg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink)}
+.pair{display:flex; flex-direction:column; gap:10px; margin-top:14px}
+.input{
+  width:100%; min-height:48px; padding:0 16px; border-radius:var(--r-pill);
+  background:var(--surface); color:var(--text); border:1px solid transparent;
+  font:inherit; font-size:15px; -webkit-appearance:none; appearance:none;
+}
+.input::placeholder{color:var(--text-4)}
+.input:focus{outline:none; border-color:var(--accent-line); background:var(--surface-2)}
+.swatches{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end}
+.sw{width:30px; height:30px; border-radius:var(--r-pill); box-shadow:inset 0 0 0 2px transparent; transition:transform 200ms var(--ease-spring)}
+.sw[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--bg), 0 0 0 2px var(--text); transform:scale(1.06)}
+
+/* first run */
+.pick{display:flex; flex-wrap:wrap; gap:8px}
+.chip{
+  display:inline-flex; flex-direction:column; align-items:flex-start;
+  padding:9px 14px; border-radius:var(--r-pill);
+  background:var(--surface); color:var(--text);
+  font-size:15px; font-weight:600; letter-spacing:-.01em;
+  transition:transform 160ms var(--ease), background 160ms var(--ease);
+}
+.chip:active{transform:scale(.955)}
+.chip small{font-size:11px; font-weight:500; color:var(--text-3); letter-spacing:0}
+.chip[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink)}
+.chip[aria-pressed="true"] small{color:var(--accent-ink); opacity:.65}
+.scroll{max-height:48vh; overflow-y:auto; margin-top:14px; -webkit-overflow-scrolling:touch}
+
+@media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important} }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar pad">
+    <div class="pips" id="pips"></div>
+    <div class="day num" id="day"></div>
+    <button class="iconbtn" id="gear" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <circle cx="12" cy="12" r="3.2"></circle>
+        <path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2L5.5 5.5"></path>
+      </svg>
+    </button>
+  </div>
+  <main class="pad" id="stage"></main>
+  <div class="bottombar pad" id="actions"></div>
+</div>
+
+<script>
+const VOCAB = [{"id":"sudah","word":"sudah","en":"already · done","ex":"Sudah selesai?","exEn":"Is it done already?","cat":"core","diff":1,"note":"Works alone as an answer: 'Sudah' = yes, done. You'll use this daily. Said 'udah' or just 'dah' in speech.","part":"foundation"},
+{"id":"belum","word":"belum","en":"not yet","ex":"Belum, nanti sore.","exEn":"Not yet, later this afternoon.","cat":"core","diff":1,"note":"The natural answer to any 'sudah…?' question. Never use 'tidak' for this. Said 'belom' in speech, but written belum.","part":"foundation"},
+{"id":"bisa","word":"bisa","en":"can","ex":"Bisa besok?","exEn":"Can you do it tomorrow?","cat":"core","diff":1,"part":"foundation"},
+{"id":"boleh","word":"boleh","en":"may · allowed","ex":"Boleh masuk?","exEn":"May I come in?","cat":"core","diff":1,"note":"bisa = able to, boleh = permitted to.","part":"foundation"},
+{"id":"tidak","word":"tidak","en":"no · not","ex":"Tidak, terima kasih.","exEn":"No, thank you.","cat":"core","diff":1,"note":"Spoken almost always as 'nggak' or 'gak'.","part":"foundation"},
+{"id":"ya","word":"ya","en":"yes","ex":"Ya, boleh.","exEn":"Yes, that's fine.","cat":"core","diff":1,"note":"Also tacked onto requests to soften them: 'Tunggu, ya.'","part":"foundation"},
+{"id":"mau","word":"mau","en":"to want","ex":"Mau ke mana?","exEn":"Where are you going?","cat":"core","diff":1,"part":"foundation"},
+{"id":"ada","word":"ada","en":"there is · to have","ex":"Ada air putih?","exEn":"Do you have drinking water?","cat":"core","diff":1,"part":"foundation"},
+{"id":"perlu","word":"perlu","en":"to need to","ex":"Saya perlu bantuan.","exEn":"I need help.","cat":"core","diff":1,"note":"Leans toward 'necessary'. butuh is needing a thing.","part":"foundation"},
+{"id":"harus","word":"harus","en":"must","ex":"Harus bayar sekarang?","exEn":"Do I have to pay now?","cat":"core","diff":1,"part":"foundation"},
+{"id":"jangan","word":"jangan","en":"don't","ex":"Jangan taruh di situ.","exEn":"Don't put it there.","cat":"core","diff":1,"note":"Only for commands. 'tidak' negates statements.","part":"foundation"},
+{"id":"tolong","word":"tolong","en":"please (request)","ex":"Tolong pindahkan ke sini.","exEn":"Please move it here.","cat":"expressions","diff":1,"note":"For asking. 'silakan' is for offering.","part":"foundation"},
+{"id":"terima-kasih","word":"terima kasih","en":"thank you","ex":"Terima kasih banyak.","exEn":"Thank you very much.","cat":"expressions","diff":1,"note":"Casual short form: 'makasih'.","part":"foundation"},
+{"id":"maaf","word":"maaf","en":"sorry","ex":"Maaf, saya terlambat.","exEn":"Sorry, I'm late.","cat":"expressions","diff":1,"part":"foundation"},
+{"id":"permisi","word":"permisi","en":"excuse me","ex":"Permisi, mau lewat.","exEn":"Excuse me, I'd like to get past.","cat":"expressions","diff":1,"note":"When passing someone or entering a space.","part":"foundation"},
+{"id":"sebentar","word":"sebentar","en":"a moment","ex":"Tunggu sebentar, ya.","exEn":"Wait a moment, okay?","cat":"time","diff":1,"note":"Spoken: 'bentar'.","part":"foundation"},
+{"id":"tunggu","word":"tunggu","en":"to wait","ex":"Tunggu di depan.","exEn":"Wait out front.","cat":"verbs","diff":1,"part":"foundation"},
+{"id":"cukup","word":"cukup","en":"enough","ex":"Sudah cukup, terima kasih.","exEn":"That's enough, thanks.","cat":"quantity","diff":1,"part":"foundation"},
+{"id":"kurang","word":"kurang","en":"not enough · lacking","ex":"Gulanya kurang.","exEn":"There isn't enough sugar.","cat":"quantity","diff":1,"note":"Also softens criticism: 'kurang bagus' = not great.","part":"foundation"},
+{"id":"tambah","word":"tambah","en":"to add","ex":"Tambah satu lagi.","exEn":"Add one more.","cat":"quantity","diff":1,"part":"foundation"},
+{"id":"lagi","word":"lagi","en":"again · more","ex":"Satu lagi, ya.","exEn":"One more, please.","cat":"quantity","diff":1,"part":"foundation"},
+{"id":"aja","word":"aja","en":"just · only","ex":"Ini aja.","exEn":"Just this one.","cat":"expressions","diff":1,"note":"Spoken form of 'saja'. Extremely common — softens almost anything.","part":"foundation"},
+{"id":"dulu","word":"dulu","en":"first · for now","ex":"Saya mandi dulu.","exEn":"I'll shower first.","cat":"time","diff":1,"part":"foundation"},
+{"id":"nanti","word":"nanti","en":"later","ex":"Nanti saja.","exEn":"Later is fine.","cat":"time","diff":1,"part":"foundation"},
+{"id":"sekarang","word":"sekarang","en":"now","ex":"Bisa sekarang?","exEn":"Can you do it now?","cat":"time","diff":1,"part":"foundation"},
+{"id":"besok","word":"besok","en":"tomorrow","ex":"Besok pagi bisa?","exEn":"Is tomorrow morning possible?","cat":"time","diff":1,"part":"foundation"},
+{"id":"kemarin","word":"kemarin","en":"yesterday","ex":"Kemarin sudah datang.","exEn":"They came yesterday.","cat":"time","diff":1,"part":"foundation"},
+{"id":"hari-ini","word":"hari ini","en":"today","ex":"Hari ini tidak bisa.","exEn":"Today isn't possible.","cat":"time","diff":1,"part":"foundation"},
+{"id":"selesai","word":"selesai","en":"finished","ex":"Kapan selesai?","exEn":"When will it be finished?","cat":"work","diff":1,"part":"foundation"},
+{"id":"ambil","word":"ambil","en":"to take · fetch","ex":"Tolong ambil kunci.","exEn":"Please get the key.","cat":"verbs","diff":1,"part":"foundation"},
+{"id":"taruh","word":"taruh","en":"to put","ex":"Taruh di atas meja.","exEn":"Put it on the table.","cat":"verbs","diff":1,"part":"foundation"},
+{"id":"pindah","word":"pindah","en":"to move","ex":"Tolong pindahkan ke sini.","exEn":"Please move it here.","cat":"verbs","diff":1,"part":"foundation"},
+{"id":"bawa","word":"bawa","en":"to bring · carry","ex":"Bawa ke kamar, ya.","exEn":"Bring it to the room.","cat":"verbs","diff":1,"part":"foundation"},
+{"id":"kasih","word":"kasih","en":"to give","ex":"Kasih saya dua.","exEn":"Give me two.","cat":"verbs","diff":1,"note":"Spoken. Formal: 'beri'.","part":"foundation"},
+{"id":"minta","word":"minta","en":"to ask for","ex":"Minta satu lagi.","exEn":"Could I have one more.","cat":"verbs","diff":1,"note":"The everyday way to ask for something in a café or shop.","part":"foundation"},
+{"id":"lihat","word":"lihat","en":"to see · look","ex":"Saya mau lihat dulu.","exEn":"I'd like to have a look first.","cat":"verbs","diff":1,"part":"foundation"},
+{"id":"tahu","word":"tahu","en":"to know","ex":"Saya tidak tahu.","exEn":"I don't know.","cat":"verbs","diff":1,"note":"Spoken as 'tau'.","part":"foundation"},
+{"id":"bilang","word":"bilang","en":"to say · tell","ex":"Bilang sama dia, ya.","exEn":"Tell them, okay?","cat":"verbs","diff":2,"note":"Spoken. Formal: 'mengatakan'.","part":"foundation"},
+{"id":"ngerti","word":"ngerti","en":"to understand","ex":"Saya belum ngerti.","exEn":"I don't understand yet.","cat":"verbs","diff":1,"note":"Spoken form of mengerti.","part":"foundation"},
+{"id":"pakai","word":"pakai","en":"to use · wear","ex":"Pakai yang ini saja.","exEn":"Just use this one.","cat":"verbs","diff":1,"part":"foundation"},
+{"id":"buka","word":"buka","en":"to open","ex":"Jam berapa buka?","exEn":"What time do you open?","cat":"verbs","diff":1,"part":"foundation"},
+{"id":"tutup","word":"tutup","en":"closed · to close","ex":"Hari ini tutup.","exEn":"It's closed today.","cat":"verbs","diff":1,"part":"foundation"},
+{"id":"rusak","word":"rusak","en":"broken","ex":"AC-nya rusak.","exEn":"The air conditioning is broken.","cat":"work","diff":1,"part":"foundation"},
+{"id":"mati","word":"mati","en":"off · dead","ex":"Lampunya mati.","exEn":"The light is off.","cat":"work","diff":1,"note":"Used for power and devices, not only living things.","part":"foundation"},
+{"id":"hidup","word":"hidup","en":"on · alive","ex":"Listriknya sudah hidup.","exEn":"The electricity is back on.","cat":"work","diff":2,"part":"foundation"},
+{"id":"bersih","word":"bersih","en":"clean","ex":"Kamarnya sudah bersih.","exEn":"The room is clean now.","cat":"adjectives","diff":1,"part":"foundation"},
+{"id":"kotor","word":"kotor","en":"dirty","ex":"Airnya kotor.","exEn":"The water is dirty.","cat":"adjectives","diff":1,"part":"foundation"},
+{"id":"panas","word":"panas","en":"hot","ex":"Hari ini panas sekali.","exEn":"It's very hot today.","cat":"adjectives","diff":1,"part":"foundation"},
+{"id":"dingin","word":"dingin","en":"cold","ex":"Minta yang dingin.","exEn":"I'd like a cold one.","cat":"adjectives","diff":1,"part":"foundation"},
+{"id":"besar","word":"besar","en":"big","ex":"Ada yang lebih besar?","exEn":"Do you have a bigger one?","cat":"adjectives","diff":1,"part":"foundation"},
+{"id":"kecil","word":"kecil","en":"small","ex":"Yang kecil saja.","exEn":"The small one, please.","cat":"adjectives","diff":1,"part":"foundation"},
+{"id":"banyak","word":"banyak","en":"a lot · many","ex":"Terlalu banyak.","exEn":"That's too much.","cat":"quantity","diff":1,"part":"foundation"},
+{"id":"sedikit","word":"sedikit","en":"a little","ex":"Sedikit saja.","exEn":"Just a little.","cat":"quantity","diff":1,"part":"foundation"},
+{"id":"mahal","word":"mahal","en":"expensive","ex":"Itu terlalu mahal.","exEn":"That's too expensive.","cat":"shopping","diff":1,"part":"foundation"},
+{"id":"murah","word":"murah","en":"cheap","ex":"Ada yang lebih murah?","exEn":"Is there a cheaper one?","cat":"shopping","diff":1,"part":"foundation"},
+{"id":"baru","word":"baru","en":"new","ex":"Ini baru?","exEn":"Is this new?","cat":"adjectives","diff":1,"part":"foundation"},
+{"id":"lama","word":"lama","en":"a long time","ex":"Sudah lama tunggu?","exEn":"Have you been waiting long?","cat":"adjectives","diff":1,"part":"foundation"},
+{"id":"cepat","word":"cepat","en":"fast · quickly","ex":"Tolong lebih cepat.","exEn":"A bit faster, please.","cat":"adjectives","diff":1,"part":"foundation"},
+{"id":"pelan","word":"pelan","en":"slow · slowly","ex":"Pelan-pelan saja.","exEn":"Just take it slowly.","cat":"adjectives","diff":1,"note":"Doubled 'pelan-pelan' is the everyday form.","part":"foundation"},
+{"id":"jauh","word":"jauh","en":"far","ex":"Jauh dari sini?","exEn":"Is it far from here?","cat":"directions","diff":1,"part":"foundation"},
+{"id":"dekat","word":"dekat","en":"near","ex":"Dekat pasar.","exEn":"It's near the market.","cat":"directions","diff":1,"part":"foundation"},
+{"id":"sini","word":"sini","en":"here","ex":"Taruh di sini saja.","exEn":"Just put it here.","cat":"directions","diff":1,"part":"foundation"},
+{"id":"sana","word":"sana","en":"over there","ex":"Di sana, sebelah kiri.","exEn":"Over there, on the left.","cat":"directions","diff":1,"part":"foundation"},
+{"id":"kiri","word":"kiri","en":"left","ex":"Belok kiri di depan.","exEn":"Turn left up ahead.","cat":"directions","diff":1,"part":"foundation"},
+{"id":"kanan","word":"kanan","en":"right","ex":"Rumahnya di kanan.","exEn":"The house is on the right.","cat":"directions","diff":1,"part":"foundation"},
+{"id":"lurus","word":"lurus","en":"straight","ex":"Lurus saja, ya.","exEn":"Just keep going straight.","cat":"directions","diff":1,"part":"foundation"},
+{"id":"belok","word":"belok","en":"to turn","ex":"Belok kanan di lampu merah.","exEn":"Turn right at the traffic light.","cat":"directions","diff":1,"part":"foundation"},
+{"id":"depan","word":"depan","en":"in front","ex":"Tunggu di depan rumah.","exEn":"Wait in front of the house.","cat":"directions","diff":1,"note":"Also means 'next': 'minggu depan' = next week.","part":"foundation"},
+{"id":"belakang","word":"belakang","en":"behind · back","ex":"Parkir di belakang.","exEn":"Park around the back.","cat":"directions","diff":1,"part":"foundation"},
+{"id":"atas","word":"atas","en":"above · up","ex":"Di atas meja.","exEn":"On top of the table.","cat":"directions","diff":1,"part":"foundation"},
+{"id":"bawah","word":"bawah","en":"below · down","ex":"Di bawah kursi.","exEn":"Under the chair.","cat":"directions","diff":1,"part":"foundation"},
+{"id":"di-mana","word":"di mana","en":"where","ex":"Di mana kamar mandi?","exEn":"Where is the bathroom?","cat":"questions","diff":1,"part":"foundation"},
+{"id":"apa","word":"apa","en":"what","ex":"Ini apa?","exEn":"What is this?","cat":"questions","diff":1,"part":"foundation"},
+{"id":"siapa","word":"siapa","en":"who","ex":"Siapa namanya?","exEn":"What's their name?","cat":"questions","diff":1,"part":"foundation"},
+{"id":"kapan","word":"kapan","en":"when","ex":"Kapan bisa datang?","exEn":"When can you come?","cat":"questions","diff":1,"part":"foundation"},
+{"id":"kenapa","word":"kenapa","en":"why","ex":"Kenapa belum selesai?","exEn":"Why isn't it finished yet?","cat":"questions","diff":1,"part":"foundation"},
+{"id":"gimana","word":"gimana","en":"how","ex":"Gimana caranya?","exEn":"How is it done?","cat":"questions","diff":1,"note":"Spoken form of 'bagaimana'.","part":"foundation"},
+{"id":"berapa","word":"berapa","en":"how much · how many","ex":"Berapa harganya?","exEn":"How much does it cost?","cat":"questions","diff":1,"part":"foundation"},
+{"id":"yang-mana","word":"yang mana","en":"which one","ex":"Yang mana punya kamu?","exEn":"Which one is yours?","cat":"questions","diff":2,"part":"foundation"},
+{"id":"satu","word":"satu","en":"one","ex":"Satu saja, ya.","exEn":"Just one, please.","cat":"numbers","diff":1,"part":"foundation"},
+{"id":"dua","word":"dua","en":"two","ex":"Dua orang.","exEn":"Two people.","cat":"numbers","diff":1,"part":"foundation"},
+{"id":"tiga","word":"tiga","en":"three","ex":"Tiga hari lagi.","exEn":"In three more days.","cat":"numbers","diff":1,"part":"foundation"},
+{"id":"lima","word":"lima","en":"five","ex":"Lima menit lagi.","exEn":"Five more minutes.","cat":"numbers","diff":1,"part":"foundation"},
+{"id":"sepuluh","word":"sepuluh","en":"ten","ex":"Sepuluh ribu saja.","exEn":"Just ten thousand.","cat":"numbers","diff":1,"part":"foundation"},
+{"id":"ribu","word":"ribu","en":"thousand","ex":"Lima puluh ribu.","exEn":"Fifty thousand.","cat":"numbers","diff":1,"note":"Prices are always in ribu. 'Goceng' is slang for 5,000.","part":"foundation"},
+{"id":"setengah","word":"setengah","en":"half","ex":"Setengah jam lagi.","exEn":"In half an hour.","cat":"quantity","diff":2,"part":"foundation"},
+{"id":"jam","word":"jam","en":"hour · o'clock","ex":"Jam berapa sekarang?","exEn":"What time is it?","cat":"time","diff":1,"part":"foundation"},
+{"id":"hari","word":"hari","en":"day","ex":"Dua hari lagi.","exEn":"In two more days.","cat":"time","diff":1,"part":"foundation"},
+{"id":"minggu","word":"minggu","en":"week","ex":"Minggu depan.","exEn":"Next week.","cat":"time","diff":1,"part":"foundation"},
+{"id":"bulan","word":"bulan","en":"month","ex":"Bulan depan pindah.","exEn":"I'm moving next month.","cat":"time","diff":1,"part":"foundation"},
+{"id":"pagi","word":"pagi","en":"morning","ex":"Besok pagi jam tujuh.","exEn":"Tomorrow morning at seven.","cat":"time","diff":1,"part":"foundation"},
+{"id":"siang","word":"siang","en":"midday","ex":"Nanti siang saja.","exEn":"Around midday is fine.","cat":"time","diff":1,"part":"foundation"},
+{"id":"sore","word":"sore","en":"late afternoon","ex":"Datang sore, ya.","exEn":"Come in the late afternoon.","cat":"time","diff":1,"note":"Roughly 3pm to sunset. No real English equivalent.","part":"foundation"},
+{"id":"malam","word":"malam","en":"night · evening","ex":"Selamat malam.","exEn":"Good evening.","cat":"time","diff":1,"part":"foundation"},
+{"id":"air","word":"air","en":"water","ex":"Minta air, dong.","exEn":"Could I get some water?","cat":"food","diff":1,"part":"foundation"},
+{"id":"air-putih","word":"air putih","en":"drinking water","ex":"Satu air putih saja.","exEn":"Just one water, please.","cat":"food","diff":1,"note":"Literally 'white water'. This is how you order plain water.","part":"foundation"},
+{"id":"makan","word":"makan","en":"to eat","ex":"Sudah makan?","exEn":"Have you eaten?","cat":"food","diff":1,"note":"Used as a greeting as much as a real question.","part":"foundation"},
+{"id":"minum","word":"minum","en":"to drink","ex":"Mau minum apa?","exEn":"What would you like to drink?","cat":"food","diff":1,"part":"foundation"},
+{"id":"enak","word":"enak","en":"delicious","ex":"Enak sekali!","exEn":"That's really good!","cat":"food","diff":1,"note":"Also used for anything pleasant — a nap, a massage.","part":"foundation"},
+{"id":"pedas","word":"pedas","en":"spicy","ex":"Jangan pedas, ya.","exEn":"Not spicy, please.","cat":"food","diff":1,"note":"Spoken: 'pedes'.","part":"foundation"},
+{"id":"es","word":"es","en":"ice","ex":"Tanpa es, ya.","exEn":"Without ice, please.","cat":"food","diff":1,"part":"foundation"},
+{"id":"tanpa","word":"tanpa","en":"without","ex":"Tanpa gula.","exEn":"Without sugar.","cat":"food","diff":1,"part":"foundation"},
+{"id":"bungkus","word":"bungkus","en":"takeaway · to wrap","ex":"Bungkus saja, ya.","exEn":"To take away, please.","cat":"food","diff":1,"note":"Say this and they'll pack it to go.","part":"foundation"},
+{"id":"pesan","word":"pesan","en":"to order · book","ex":"Saya sudah pesan.","exEn":"I already ordered.","cat":"food","diff":1,"part":"foundation"},
+{"id":"bayar","word":"bayar","en":"to pay","ex":"Mau bayar.","exEn":"I'd like to pay.","cat":"shopping","diff":1,"part":"foundation"},
+{"id":"uang","word":"uang","en":"money","ex":"Tidak ada uang kecil.","exEn":"I don't have small change.","cat":"shopping","diff":1,"part":"foundation"},
+{"id":"kembalian","word":"kembalian","en":"change (money)","ex":"Kembaliannya belum.","exEn":"I haven't had my change yet.","cat":"shopping","diff":2,"part":"foundation"},
+{"id":"tunai","word":"tunai","en":"cash","ex":"Bayar tunai bisa?","exEn":"Can I pay cash?","cat":"shopping","diff":2,"part":"foundation"},
+{"id":"kartu","word":"kartu","en":"card","ex":"Bisa pakai kartu?","exEn":"Can I use a card?","cat":"shopping","diff":1,"part":"foundation"},
+{"id":"bon","word":"bon","en":"bill · receipt","ex":"Minta bon, ya.","exEn":"The bill, please.","cat":"shopping","diff":2,"note":"Also 'nota'. Both are used.","part":"foundation"},
+{"id":"beli","word":"beli","en":"to buy","ex":"Beli di mana?","exEn":"Where did you buy it?","cat":"shopping","diff":1,"part":"foundation"},
+{"id":"pasar","word":"pasar","en":"market","ex":"Ke pasar dulu.","exEn":"I'm going to the market first.","cat":"shopping","diff":1,"part":"foundation"},
+{"id":"toko","word":"toko","en":"shop","ex":"Tokonya sudah tutup.","exEn":"The shop is already closed.","cat":"shopping","diff":1,"part":"foundation"},
+{"id":"antar","word":"antar","en":"to deliver","ex":"Bisa antar ke rumah?","exEn":"Can you deliver to the house?","cat":"delivery","diff":1,"part":"foundation"},
+{"id":"kirim","word":"kirim","en":"to send","ex":"Sudah dikirim?","exEn":"Has it been sent?","cat":"delivery","diff":1,"part":"foundation"},
+{"id":"paket","word":"paket","en":"package","ex":"Ada paket untuk saya?","exEn":"Is there a package for me?","cat":"delivery","diff":1,"part":"foundation"},
+{"id":"sampai","word":"sampai","en":"to arrive · until","ex":"Sudah sampai?","exEn":"Have you arrived?","cat":"delivery","diff":1,"part":"foundation"},
+{"id":"alamat","word":"alamat","en":"address","ex":"Ini alamatnya.","exEn":"This is the address.","cat":"delivery","diff":2,"part":"foundation"},
+{"id":"pagar","word":"pagar","en":"gate · fence","ex":"Pagarnya tolong tutup.","exEn":"Please close the gate.","cat":"work","diff":2,"part":"foundation"},
+{"id":"rumah","word":"rumah","en":"house","ex":"Di depan rumah saya.","exEn":"In front of my house.","cat":"work","diff":1,"part":"foundation"},
+{"id":"kamar","word":"kamar","en":"room","ex":"Kamar nomor dua.","exEn":"Room number two.","cat":"work","diff":1,"part":"foundation"},
+{"id":"kunci","word":"kunci","en":"key · to lock","ex":"Kuncinya di mana?","exEn":"Where's the key?","cat":"work","diff":1,"part":"foundation"},
+{"id":"lampu","word":"lampu","en":"light · lamp","ex":"Lampu depan mati.","exEn":"The front light is out.","cat":"work","diff":1,"part":"foundation"},
+{"id":"listrik","word":"listrik","en":"electricity","ex":"Listriknya mati lagi.","exEn":"The power is out again.","cat":"work","diff":2,"part":"foundation"},
+{"id":"air-panas","word":"air panas","en":"hot water","ex":"Air panasnya tidak hidup.","exEn":"The hot water isn't working.","cat":"work","diff":2,"part":"foundation"},
+{"id":"sampah","word":"sampah","en":"rubbish","ex":"Sampahnya sudah diambil?","exEn":"Has the rubbish been collected?","cat":"work","diff":1,"part":"foundation"},
+{"id":"cuci","word":"cuci","en":"to wash","ex":"Tolong cuci ini.","exEn":"Please wash this.","cat":"work","diff":1,"part":"foundation"},
+{"id":"kerja","word":"kerja","en":"to work","ex":"Besok kerja?","exEn":"Are you working tomorrow?","cat":"work","diff":1,"part":"foundation"},
+{"id":"tukang","word":"tukang","en":"tradesman","ex":"Tukangnya datang besok.","exEn":"The workman is coming tomorrow.","cat":"work","diff":2,"note":"tukang kayu = carpenter, tukang listrik = electrician.","part":"foundation"},
+{"id":"perbaiki","word":"perbaiki","en":"to fix","ex":"Bisa diperbaiki?","exEn":"Can it be fixed?","cat":"work","diff":2,"note":"You'll hear the passive 'diperbaiki' more than the root.","part":"foundation"},
+{"id":"ganti","word":"ganti","en":"to replace","ex":"Tolong ganti yang baru.","exEn":"Please replace it with a new one.","cat":"work","diff":1,"part":"foundation"},
+{"id":"jalan","word":"jalan","en":"road · to walk","ex":"Jalannya rusak.","exEn":"The road is in bad shape.","cat":"transport","diff":1,"part":"foundation"},
+{"id":"motor","word":"motor","en":"motorbike","ex":"Naik motor saja.","exEn":"Let's just take the motorbike.","cat":"transport","diff":1,"part":"foundation"},
+{"id":"mobil","word":"mobil","en":"car","ex":"Mobilnya di mana?","exEn":"Where's the car?","cat":"transport","diff":1,"part":"foundation"},
+{"id":"bensin","word":"bensin","en":"petrol","ex":"Bensinnya habis.","exEn":"It's out of petrol.","cat":"transport","diff":1,"part":"foundation"},
+{"id":"habis","word":"habis","en":"used up · all gone","ex":"Sudah habis.","exEn":"It's all gone.","cat":"quantity","diff":1,"note":"Shops use this constantly to mean 'sold out'.","part":"foundation"},
+{"id":"parkir","word":"parkir","en":"to park","ex":"Parkir di sini boleh?","exEn":"Is it okay to park here?","cat":"transport","diff":1,"part":"foundation"},
+{"id":"macet","word":"macet","en":"traffic jam","ex":"Macet sekali hari ini.","exEn":"The traffic is terrible today.","cat":"transport","diff":1,"part":"foundation"},
+{"id":"naik","word":"naik","en":"to ride · go up","ex":"Naik apa ke sana?","exEn":"How do you get there?","cat":"transport","diff":1,"part":"foundation"},
+{"id":"hati-hati","word":"hati-hati","en":"be careful","ex":"Hati-hati di jalan.","exEn":"Take care on the road.","cat":"expressions","diff":1,"note":"Said to anyone leaving. Expected politeness.","part":"foundation"},
+{"id":"tidak-apa-apa","word":"tidak apa-apa","en":"it's fine","ex":"Tidak apa-apa, santai.","exEn":"It's fine, no worries.","cat":"expressions","diff":1,"note":"Spoken: nggak apa-apa, or just gapapa.","part":"foundation"},
+{"id":"silakan","word":"silakan","en":"go ahead · please","ex":"Silakan duduk.","exEn":"Please sit down.","cat":"expressions","diff":1,"note":"For offering. 'tolong' is for requesting.","part":"foundation"},
+{"id":"bagus","word":"bagus","en":"good · nice","ex":"Bagus sekali.","exEn":"Very nice.","cat":"adjectives","diff":1,"part":"foundation"},
+{"id":"salah","word":"salah","en":"wrong","ex":"Mungkin saya salah.","exEn":"Maybe I'm wrong.","cat":"adjectives","diff":1,"part":"foundation"},
+{"id":"betul","word":"betul","en":"correct","ex":"Betul, itu dia.","exEn":"Correct, that's the one.","cat":"adjectives","diff":1,"note":"Spoken: 'bener'.","part":"foundation"},
+{"id":"mungkin","word":"mungkin","en":"maybe","ex":"Mungkin besok.","exEn":"Maybe tomorrow.","cat":"expressions","diff":1,"part":"foundation"},
+{"id":"kalau","word":"kalau","en":"if","ex":"Kalau besok bisa?","exEn":"What if it's tomorrow?","cat":"core","diff":1,"part":"foundation"},
+{"id":"sama","word":"sama","en":"same · with","ex":"Sama saja.","exEn":"It's the same.","cat":"core","diff":1,"part":"foundation"},
+{"id":"orang","word":"orang","en":"person","ex":"Untuk empat orang.","exEn":"For four people.","cat":"people","diff":1,"note":"Also the counter for people: 'dua orang'.","part":"foundation"},
+{"id":"teman","word":"teman","en":"friend","ex":"Ini teman saya.","exEn":"This is my friend.","cat":"people","diff":1,"part":"foundation"},
+{"id":"tapi","word":"tapi","en":"but","ex":"Mau, tapi nanti.","exEn":"I'd like to, but later.","cat":"core","diff":1,"part":"connectors"},
+{"id":"karena","word":"karena","en":"because","ex":"Tidak bisa karena hujan.","exEn":"Not possible because of rain.","cat":"core","diff":1,"part":"connectors"},
+{"id":"soalnya","word":"soalnya","en":"because (spoken)","ex":"Saya telat, soalnya macet.","exEn":"I'm late, because of the traffic.","cat":"core","diff":2,"note":"How people actually say 'because'. karena is the written form.","part":"connectors"},
+{"id":"jadi","word":"jadi","en":"so · therefore","ex":"Jadi, gimana?","exEn":"So, how is it?","cat":"core","diff":1,"note":"Also 'to become' and 'it's on' — 'jadi nggak?' = are we still on?","part":"connectors"},
+{"id":"makanya","word":"makanya","en":"that's why","ex":"Makanya saya bilang.","exEn":"That's why I said so.","cat":"core","diff":2,"part":"connectors"},
+{"id":"supaya","word":"supaya","en":"so that","ex":"Tutup pintunya supaya dingin.","exEn":"Close the door so it stays cool.","cat":"core","diff":2,"part":"connectors"},
+{"id":"padahal","word":"padahal","en":"even though","ex":"Padahal sudah saya bilang.","exEn":"Even though I already told them.","cat":"core","diff":2,"note":"Carries a note of 'and yet'. Very common in complaints.","part":"connectors"},
+{"id":"walaupun","word":"walaupun","en":"although","ex":"Walaupun mahal, saya beli.","exEn":"Although it's expensive, I'll buy it.","cat":"core","diff":2,"part":"connectors"},
+{"id":"ternyata","word":"ternyata","en":"it turns out","ex":"Ternyata sudah tutup.","exEn":"It turns out they're already closed.","cat":"core","diff":2,"part":"connectors"},
+{"id":"sebenarnya","word":"sebenarnya","en":"actually","ex":"Sebenarnya saya belum tahu.","exEn":"Actually I don't know yet.","cat":"core","diff":2,"part":"connectors"},
+{"id":"kayaknya","word":"kayaknya","en":"seems like","ex":"Kayaknya bakal hujan.","exEn":"Looks like it's going to rain.","cat":"core","diff":2,"note":"Spoken. Formal: sepertinya.","part":"connectors"},
+{"id":"malah","word":"malah","en":"instead","ex":"Malah tambah rusak.","exEn":"It actually got more broken instead.","cat":"core","diff":3,"note":"Carries a sense of 'on the contrary' — the opposite of what you expected.","part":"connectors"},
+{"id":"misalnya","word":"misalnya","en":"for example","ex":"Misalnya hari Senin.","exEn":"Monday, for example.","cat":"core","diff":2,"part":"connectors"},
+{"id":"selain","word":"selain","en":"besides · other than","ex":"Selain ini, ada lagi?","exEn":"Other than this, is there more?","cat":"core","diff":2,"part":"connectors"},
+{"id":"biasanya","word":"biasanya","en":"usually","ex":"Biasanya jam delapan.","exEn":"Usually around eight.","cat":"time","diff":1,"part":"connectors"},
+{"id":"kadang","word":"kadang","en":"sometimes","ex":"Kadang dia telat.","exEn":"Sometimes they're late.","cat":"time","diff":1,"note":"Often doubled: kadang-kadang.","part":"connectors"},
+{"id":"selalu","word":"selalu","en":"always","ex":"Dia selalu datang pagi.","exEn":"They always come in the morning.","cat":"time","diff":1,"part":"connectors"},
+{"id":"sering","word":"sering","en":"often","ex":"Sering mati lampu di sini.","exEn":"The power often goes out here.","cat":"time","diff":1,"part":"connectors"},
+{"id":"jarang","word":"jarang","en":"rarely","ex":"Jarang ada yang jual.","exEn":"Few places sell it.","cat":"time","diff":2,"part":"connectors"},
+{"id":"pernah","word":"pernah","en":"ever · have done","ex":"Pernah ke Lombok?","exEn":"Have you ever been to Lombok?","cat":"core","diff":2,"note":"Marks experience, not past tense. 'belum pernah' = never yet.","part":"connectors"},
+{"id":"masih","word":"masih","en":"still","ex":"Masih tutup.","exEn":"It's still closed.","cat":"core","diff":1,"part":"connectors"},
+{"id":"lebih","word":"lebih","en":"more","ex":"Ada yang lebih murah?","exEn":"Is there a cheaper one?","cat":"quantity","diff":1,"note":"lebih + adjective is how comparatives work.","part":"connectors"},
+{"id":"paling","word":"paling","en":"most","ex":"Yang paling bagus mana?","exEn":"Which is the best one?","cat":"quantity","diff":1,"part":"connectors"},
+{"id":"terlalu","word":"terlalu","en":"too (excessive)","ex":"Terlalu jauh.","exEn":"That's too far.","cat":"quantity","diff":1,"part":"connectors"},
+{"id":"agak","word":"agak","en":"somewhat","ex":"Agak mahal, ya.","exEn":"A bit expensive, isn't it.","cat":"quantity","diff":2,"part":"connectors"},
+{"id":"hampir","word":"hampir","en":"almost","ex":"Hampir selesai.","exEn":"Almost finished.","cat":"quantity","diff":1,"part":"connectors"},
+{"id":"banget","word":"banget","en":"very (spoken)","ex":"Enak banget!","exEn":"That's so good!","cat":"expressions","diff":1,"note":"Goes after the word. Formal equivalent is 'sekali'.","part":"connectors"},
+{"id":"sekali","word":"sekali","en":"very · once","ex":"Bagus sekali.","exEn":"Very nice.","cat":"expressions","diff":1,"note":"After an adjective = very. Elsewhere = one time.","part":"connectors"},
+{"id":"semua","word":"semua","en":"all","ex":"Semua sudah siap.","exEn":"Everything's ready.","cat":"quantity","diff":1,"part":"connectors"},
+{"id":"setiap","word":"setiap","en":"every","ex":"Setiap hari Senin.","exEn":"Every Monday.","cat":"time","diff":1,"part":"connectors"},
+{"id":"sendiri","word":"sendiri","en":"alone · oneself","ex":"Saya pergi sendiri.","exEn":"I'm going on my own.","cat":"core","diff":1,"part":"connectors"},
+{"id":"bersama","word":"bersama","en":"together","ex":"Kita pergi bersama.","exEn":"We'll go together.","cat":"core","diff":2,"part":"connectors"},
+{"id":"juga","word":"juga","en":"also","ex":"Saya juga mau.","exEn":"I want one too.","cat":"core","diff":1,"part":"connectors"},
+{"id":"doang","word":"doang","en":"only (slang)","ex":"Segitu doang?","exEn":"That's all?","cat":"expressions","diff":2,"note":"Jakarta slang, widely understood. Blunter than 'saja'.","part":"connectors"},
+{"id":"gitu","word":"gitu","en":"like that","ex":"Jangan gitu, dong.","exEn":"Don't be like that.","cat":"expressions","diff":2,"note":"Spoken 'begitu'. 'gini' is 'like this'.","part":"connectors"},
+{"id":"gini","word":"gini","en":"like this","ex":"Caranya gini.","exEn":"This is how it's done.","cat":"expressions","diff":2,"part":"connectors"},
+{"id":"sih","word":"sih","en":"(softening particle)","ex":"Kenapa sih?","exEn":"Why though?","cat":"expressions","diff":3,"note":"Adds mild emphasis or curiosity. Untranslatable but everywhere.","part":"connectors"},
+{"id":"dong","word":"dong","en":"(please, softener)","ex":"Bantu dong.","exEn":"Give me a hand, would you.","cat":"expressions","diff":2,"note":"Softens a request into something friendly.","part":"connectors"},
+{"id":"nih","word":"nih","en":"here (this one)","ex":"Ini nih yang saya cari.","exEn":"This is the one I was after.","cat":"expressions","diff":3,"note":"Tacked onto something you're handing over or pointing out. 'Ini nih' = this one here; 'capek nih' = I'm tired, you see.","part":"connectors"},
+{"id":"tuh","word":"tuh","en":"there (that one)","ex":"Itu tuh, yang merah.","exEn":"That one there, the red one.","cat":"expressions","diff":3,"note":"Points at something away from you, often with a hint of 'see, told you'. The outward-facing partner to nih.","part":"connectors"},
+{"id":"terserah","word":"terserah","en":"up to you","ex":"Terserah kamu aja.","exEn":"Whatever you prefer.","cat":"expressions","diff":2,"part":"connectors"},
+{"id":"pokoknya","word":"pokoknya","en":"the main thing is","ex":"Pokoknya harus selesai besok.","exEn":"The main thing is it must be done tomorrow.","cat":"expressions","diff":3,"note":"Cuts off discussion and states the bottom line. Useful when a negotiation is going in circles.","part":"connectors"},
+{"id":"akhirnya","word":"akhirnya","en":"finally","ex":"Akhirnya datang juga.","exEn":"They finally turned up.","cat":"time","diff":2,"part":"connectors"},
+{"id":"tiba-tiba","word":"tiba-tiba","en":"suddenly","ex":"Tiba-tiba mati lampu.","exEn":"The power suddenly went out.","cat":"time","diff":2,"part":"connectors"},
+{"id":"langsung","word":"langsung","en":"straight away","ex":"Langsung ke sana aja.","exEn":"Just go straight there.","cat":"time","diff":2,"note":"Also 'directly', with no stop in between.","part":"connectors"},
+{"id":"segera","word":"segera","en":"soon · promptly","ex":"Mohon segera diperbaiki.","exEn":"Please fix it promptly.","cat":"time","diff":2,"part":"connectors"},
+{"id":"tadi","word":"tadi","en":"earlier today","ex":"Tadi pagi sudah datang.","exEn":"They came earlier this morning.","cat":"time","diff":1,"note":"Only for earlier the same day.","part":"connectors"},
+{"id":"barusan","word":"barusan","en":"just now","ex":"Barusan dia pergi.","exEn":"They left just now.","cat":"time","diff":2,"part":"connectors"},
+{"id":"lusa","word":"lusa","en":"day after tomorrow","ex":"Lusa saja, ya.","exEn":"The day after tomorrow, then.","cat":"time","diff":2,"part":"connectors"},
+{"id":"sejak","word":"sejak","en":"since","ex":"Sejak kemarin rusak.","exEn":"It's been broken since yesterday.","cat":"time","diff":2,"part":"connectors"},
+{"id":"selama","word":"selama","en":"during","ex":"Selama dua minggu.","exEn":"For two weeks.","cat":"time","diff":2,"note":"Also 'for' with a duration: selama dua minggu.","part":"connectors"},
+{"id":"waktu","word":"waktu","en":"time · when (past)","ex":"Waktu saya datang, sudah tutup.","exEn":"When I arrived, it was closed.","cat":"time","diff":2,"part":"connectors"},
+{"id":"sambil","word":"sambil","en":"while (doing)","ex":"Sambil nunggu, saya makan.","exEn":"I ate while waiting.","cat":"time","diff":3,"note":"Two things done at once by the same person. For two different people doing things at once, use sementara.","part":"connectors"},
+{"id":"setelah","word":"setelah","en":"after","ex":"Setelah makan siang.","exEn":"After lunch.","cat":"time","diff":2,"part":"connectors"},
+{"id":"sebelum","word":"sebelum","en":"before","ex":"Sebelum jam lima.","exEn":"Before five o'clock.","cat":"time","diff":2,"part":"connectors"},
+{"id":"mulai","word":"mulai","en":"to start","ex":"Mulai jam berapa?","exEn":"What time does it start?","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"berhenti","word":"berhenti","en":"to stop","ex":"Berhenti di sini aja.","exEn":"Just stop here.","cat":"verbs","diff":1,"note":"Say this to a driver.","part":"connectors"},
+{"id":"lanjut","word":"lanjut","en":"to continue","ex":"Lanjut besok aja.","exEn":"Let's continue tomorrow.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"coba","word":"coba","en":"to try","ex":"Coba dulu, ya.","exEn":"Let me try it first.","cat":"verbs","diff":1,"note":"Also softens a request: 'coba lihat' = have a look.","part":"connectors"},
+{"id":"bantu","word":"bantu","en":"to help","ex":"Bisa bantu saya?","exEn":"Can you help me?","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"bikin","word":"bikin","en":"to make (spoken)","ex":"Bikin dua, ya.","exEn":"Make two, please.","cat":"verbs","diff":1,"note":"Spoken. Formal: membuat.","part":"connectors"},
+{"id":"dapat","word":"dapat","en":"to get · to be able","ex":"Sudah dapat?","exEn":"Did you get it?","cat":"verbs","diff":2,"note":"Spoken: dapet.","part":"connectors"},
+{"id":"kena","word":"kena","en":"to get hit by","ex":"Kena hujan di jalan.","exEn":"I got caught in the rain.","cat":"verbs","diff":2,"note":"Also 'kena denda' = got fined.","part":"connectors"},
+{"id":"tinggal","word":"tinggal","en":"to live · to remain","ex":"Saya tinggal di Canggu.","exEn":"I live in Canggu.","cat":"verbs","diff":1,"note":"Also 'only ... left': 'tinggal satu'.","part":"connectors"},
+{"id":"pergi","word":"pergi","en":"to go","ex":"Mau pergi ke mana?","exEn":"Where are you going?","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"datang","word":"datang","en":"to come","ex":"Jam berapa datang?","exEn":"What time are you coming?","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"pulang","word":"pulang","en":"to go home","ex":"Saya pulang dulu, ya.","exEn":"I'm heading home now.","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"berangkat","word":"berangkat","en":"to depart","ex":"Berangkat jam tujuh.","exEn":"We leave at seven.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"masuk","word":"masuk","en":"to enter","ex":"Silakan masuk.","exEn":"Please come in.","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"keluar","word":"keluar","en":"to exit · go out","ex":"Dia lagi keluar.","exEn":"They've stepped out.","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"turun","word":"turun","en":"to go down · get off","ex":"Saya turun di sini.","exEn":"I'll get off here.","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"lewat","word":"lewat","en":"to pass · via","ex":"Lewat jalan kecil aja.","exEn":"Let's go via the small road.","cat":"directions","diff":2,"part":"connectors"},
+{"id":"mampir","word":"mampir","en":"to drop by","ex":"Mampir dulu, yuk.","exEn":"Let's drop in first.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"jemput","word":"jemput","en":"to pick up (someone)","ex":"Bisa jemput saya?","exEn":"Can you pick me up?","cat":"transport","diff":2,"part":"connectors"},
+{"id":"cari","word":"cari","en":"to look for","ex":"Saya cari kunci.","exEn":"I'm looking for the key.","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"ketemu","word":"ketemu","en":"to meet · to find","ex":"Sudah ketemu kuncinya?","exEn":"Did you find the key?","cat":"verbs","diff":2,"note":"Spoken. Formal: bertemu.","part":"connectors"},
+{"id":"kenal","word":"kenal","en":"to know (a person)","ex":"Kamu kenal dia?","exEn":"Do you know them?","cat":"people","diff":2,"note":"tahu is for facts, kenal is for people.","part":"connectors"},
+{"id":"ingat","word":"ingat","en":"to remember","ex":"Saya tidak ingat.","exEn":"I don't remember.","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"lupa","word":"lupa","en":"to forget","ex":"Maaf, saya lupa.","exEn":"Sorry, I forgot.","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"tunjuk","word":"tunjukkan","en":"to show","ex":"Tunjukkan ke saya, dong.","exEn":"Show me, would you.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"jelaskan","word":"jelaskan","en":"to explain","ex":"Bisa jelaskan lagi?","exEn":"Could you explain again?","cat":"verbs","diff":3,"note":"The -kan ending makes it a direct command. Softer: 'bisa dijelaskan?'","part":"connectors"},
+{"id":"ulang","word":"ulangi","en":"to repeat","ex":"Tolong ulangi, pelan-pelan.","exEn":"Please repeat that, slowly.","cat":"verbs","diff":2,"note":"The single most useful phrase while learning.","part":"connectors"},
+{"id":"dengar","word":"dengar","en":"to hear","ex":"Saya tidak dengar.","exEn":"I didn't hear that.","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"bicara","word":"bicara","en":"to speak","ex":"Bisa bicara pelan-pelan?","exEn":"Could you speak slowly?","cat":"verbs","diff":2,"note":"Spoken: ngomong.","part":"connectors"},
+{"id":"ngomong","word":"ngomong","en":"to talk (spoken)","ex":"Dia ngomong apa?","exEn":"What did they say?","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"tanya","word":"tanya","en":"to ask","ex":"Boleh tanya sedikit?","exEn":"May I ask something?","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"jawab","word":"jawab","en":"to answer","ex":"Dia belum jawab.","exEn":"They haven't answered yet.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"pikir","word":"pikir","en":"to think","ex":"Saya pikir besok.","exEn":"I thought it was tomorrow.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"rasa","word":"rasa","en":"to feel · taste","ex":"Rasanya enak.","exEn":"It tastes good.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"suka","word":"suka","en":"to like","ex":"Saya suka yang ini.","exEn":"I like this one.","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"benci","word":"benci","en":"to hate","ex":"Saya benci macet.","exEn":"I hate traffic jams.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"butuh","word":"butuh","en":"to need (a thing)","ex":"Saya butuh bantuan.","exEn":"I need help.","cat":"verbs","diff":1,"note":"More personal and everyday than perlu.","part":"connectors"},
+{"id":"punya","word":"punya","en":"to have · to own","ex":"Punya yang lebih besar?","exEn":"Do you have a bigger one?","cat":"verbs","diff":1,"part":"connectors"},
+{"id":"pinjam","word":"pinjam","en":"to borrow","ex":"Boleh pinjam sebentar?","exEn":"May I borrow it a moment?","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"simpan","word":"simpan","en":"to keep · store","ex":"Simpan di kulkas, ya.","exEn":"Keep it in the fridge.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"buang","word":"buang","en":"to throw away","ex":"Jangan dibuang.","exEn":"Don't throw it away.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"tutup-pintu","word":"kunci pintu","en":"lock the door","ex":"Jangan lupa kunci pintu.","exEn":"Don't forget to lock the door.","cat":"work","diff":2,"part":"connectors"},
+{"id":"nyala","word":"nyala","en":"to be on (light)","ex":"Lampunya masih nyala.","exEn":"The light is still on.","cat":"work","diff":2,"note":"'nyalakan' = turn it on.","part":"connectors"},
+{"id":"matikan","word":"matikan","en":"turn off","ex":"Tolong matikan AC-nya.","exEn":"Please turn off the aircon.","cat":"work","diff":2,"part":"connectors"},
+{"id":"nyalakan","word":"nyalakan","en":"turn on","ex":"Nyalakan lampunya, dong.","exEn":"Turn the light on, would you.","cat":"work","diff":2,"part":"connectors"},
+{"id":"isi","word":"isi","en":"to fill · contents","ex":"Tolong isi air.","exEn":"Please fill up the water.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"tarik","word":"tarik","en":"to pull","ex":"Tarik, jangan dorong.","exEn":"Pull, don't push.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"dorong","word":"dorong","en":"to push","ex":"Tolong dorong sedikit.","exEn":"Push it a little, please.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"angkat","word":"angkat","en":"to lift","ex":"Dia nggak angkat telepon.","exEn":"They're not picking up.","cat":"verbs","diff":2,"note":"Also how you say answering a phone: angkat telepon.","part":"connectors"},
+{"id":"potong","word":"potong","en":"to cut","ex":"Tolong potong rumputnya.","exEn":"Please cut the grass.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"tukar","word":"tukar","en":"to exchange","ex":"Bisa tukar yang lain?","exEn":"Can I exchange it for another?","cat":"shopping","diff":2,"part":"connectors"},
+{"id":"pilih","word":"pilih","en":"to choose","ex":"Silakan pilih sendiri.","exEn":"Please choose yourself.","cat":"verbs","diff":2,"part":"connectors"},
+{"id":"siap","word":"siap","en":"ready","ex":"Sudah siap?","exEn":"Are you ready?","cat":"adjectives","diff":1,"part":"connectors"},
+{"id":"penting","word":"penting","en":"important","ex":"Ini penting, ya.","exEn":"This one is important.","cat":"adjectives","diff":2,"part":"connectors"},
+{"id":"susah","word":"susah","en":"difficult","ex":"Susah dicari.","exEn":"It's hard to find.","cat":"adjectives","diff":1,"part":"connectors"},
+{"id":"gampang","word":"gampang","en":"easy","ex":"Gampang, kok.","exEn":"It's easy, really.","cat":"adjectives","diff":1,"note":"Spoken. Formal: mudah.","part":"connectors"},
+{"id":"sibuk","word":"sibuk","en":"busy","ex":"Lagi sibuk, nanti ya.","exEn":"I'm busy, later.","cat":"adjectives","diff":1,"part":"connectors"},
+{"id":"capek","word":"capek","en":"tired","ex":"Capek banget hari ini.","exEn":"So tired today.","cat":"adjectives","diff":1,"part":"connectors"},
+{"id":"lapar","word":"lapar","en":"hungry","ex":"Saya sudah lapar.","exEn":"I'm hungry already.","cat":"adjectives","diff":1,"part":"connectors"},
+{"id":"haus","word":"haus","en":"thirsty","ex":"Haus banget.","exEn":"Really thirsty.","cat":"adjectives","diff":1,"part":"connectors"},
+{"id":"senang","word":"senang","en":"happy · glad","ex":"Senang ketemu kamu.","exEn":"Nice to meet you.","cat":"adjectives","diff":1,"part":"connectors"},
+{"id":"marah","word":"marah","en":"angry","ex":"Dia lagi marah.","exEn":"They're angry right now.","cat":"adjectives","diff":2,"part":"connectors"},
+{"id":"takut","word":"takut","en":"afraid","ex":"Saya takut anjing.","exEn":"I'm afraid of dogs.","cat":"adjectives","diff":2,"part":"connectors"},
+{"id":"bingung","word":"bingung","en":"confused","ex":"Saya bingung, nih.","exEn":"I'm confused.","cat":"adjectives","diff":2,"part":"connectors"},
+{"id":"lagi-doing","word":"lagi","en":"currently (doing)","ex":"Lagi apa?","exEn":"What are you up to?","cat":"core","diff":2,"note":"Before a verb it marks the present continuous. Different from 'lagi' = again.","part":"connectors"},
+{"id":"belum-pernah","word":"belum pernah","en":"never (yet)","ex":"Saya belum pernah ke sana.","exEn":"I've never been there.","cat":"expressions","diff":2,"part":"connectors"},
+{"id":"sama-sama","word":"sama-sama","en":"you're welcome","ex":"Sama-sama!","exEn":"You're welcome!","cat":"expressions","diff":1,"part":"connectors"},
+{"id":"selamat-datang","word":"selamat datang","en":"welcome","ex":"Selamat datang di Bali.","exEn":"Welcome to Bali.","cat":"expressions","diff":1,"part":"connectors"},
+{"id":"permisi-dulu","word":"permisi dulu","en":"excuse me, I'm off","ex":"Permisi dulu, ya.","exEn":"I'll excuse myself now.","cat":"expressions","diff":2,"note":"Said when leaving, not when passing.","part":"connectors"},
+{"id":"bocor","word":"bocor","en":"leaking","ex":"Atapnya bocor.","exEn":"The roof is leaking.","cat":"work","diff":2,"part":"home and services"},
+{"id":"mampet","word":"mampet","en":"blocked · clogged","ex":"Wastafelnya mampet.","exEn":"The sink is blocked.","cat":"work","diff":2,"note":"Standard word for drains. Formal: tersumbat.","part":"home and services"},
+{"id":"keran","word":"keran","en":"tap · faucet","ex":"Kerannya rusak.","exEn":"The tap is broken.","cat":"work","diff":2,"part":"home and services"},
+{"id":"pipa","word":"pipa","en":"pipe","ex":"Pipanya bocor di bawah.","exEn":"The pipe is leaking underneath.","cat":"work","diff":2,"part":"home and services"},
+{"id":"saluran","word":"saluran","en":"drain · channel","ex":"Salurannya kotor.","exEn":"The drain is dirty.","cat":"work","diff":3,"note":"Also a TV channel. For a blocked one you'll hear 'salurannya mampet'.","part":"home and services"},
+{"id":"wastafel","word":"wastafel","en":"sink · washbasin","ex":"Wastafelnya perlu dibersihkan.","exEn":"The basin needs cleaning.","cat":"work","diff":3,"note":"From Dutch. The bathroom basin specifically — a kitchen sink is bak cuci piring.","part":"home and services"},
+{"id":"toilet","word":"toilet","en":"toilet","ex":"Toiletnya tidak nyiram.","exEn":"The toilet won't flush.","cat":"work","diff":1,"note":"Also 'kamar kecil' or 'WC' (pronounced way-say).","part":"home and services"},
+{"id":"kamar-mandi","word":"kamar mandi","en":"bathroom","ex":"Kamar mandinya di mana?","exEn":"Where is the bathroom?","cat":"work","diff":1,"part":"home and services"},
+{"id":"dapur","word":"dapur","en":"kitchen","ex":"Ada di dapur.","exEn":"It's in the kitchen.","cat":"work","diff":1,"part":"home and services"},
+{"id":"kulkas","word":"kulkas","en":"fridge","ex":"Taruh di kulkas, ya.","exEn":"Put it in the fridge.","cat":"work","diff":1,"part":"home and services"},
+{"id":"kompor","word":"kompor","en":"stove","ex":"Kompornya tidak nyala.","exEn":"The stove won't light.","cat":"work","diff":2,"part":"home and services"},
+{"id":"gas","word":"gas","en":"gas (cylinder)","ex":"Gasnya habis.","exEn":"The gas has run out.","cat":"work","diff":2,"part":"home and services"},
+{"id":"ac","word":"AC","en":"air conditioning","ex":"AC-nya kurang dingin.","exEn":"The aircon isn't cold enough.","cat":"work","diff":1,"note":"Pronounced ah-say.","part":"home and services"},
+{"id":"kipas","word":"kipas","en":"fan","ex":"Nyalakan kipasnya.","exEn":"Turn the fan on.","cat":"work","diff":2,"part":"home and services"},
+{"id":"colokan","word":"colokan","en":"power socket","ex":"Colokannya di mana?","exEn":"Where's the socket?","cat":"work","diff":2,"part":"home and services"},
+{"id":"kabel","word":"kabel","en":"cable · wire","ex":"Kabelnya putus.","exEn":"The cable is cut.","cat":"work","diff":2,"part":"home and services"},
+{"id":"sekring","word":"sekring","en":"fuse · breaker","ex":"Sekringnya turun lagi.","exEn":"The breaker tripped again.","cat":"work","diff":3,"note":"From Dutch. When the power dies in one room only, this is the word you want.","part":"home and services"},
+{"id":"genset","word":"genset","en":"generator","ex":"Pakai genset kalau mati lampu.","exEn":"Use the generator when the power goes.","cat":"work","diff":3,"note":"From 'generator set'. Worth asking 'ada genset?' before a long stay — blackouts are routine.","part":"home and services"},
+{"id":"mati-lampu","word":"mati lampu","en":"power cut","ex":"Sering mati lampu di sini.","exEn":"Power cuts happen a lot here.","cat":"work","diff":1,"note":"Literally 'dead light' — used for any blackout.","part":"home and services"},
+{"id":"pompa","word":"pompa","en":"pump","ex":"Pompa airnya rusak.","exEn":"The water pump is broken.","cat":"work","diff":3,"note":"Weak water pressure in Bali is usually the pompa, not the supply.","part":"home and services"},
+{"id":"tangki","word":"tangki","en":"tank","ex":"Tangki airnya kosong.","exEn":"The water tank is empty.","cat":"work","diff":3,"note":"Rooftop water tanks are standard. 'Tangkinya habis' means your tank is empty, not the mains.","part":"home and services"},
+{"id":"kosong","word":"kosong","en":"empty","ex":"Kamarnya masih kosong.","exEn":"The room is still empty.","cat":"adjectives","diff":1,"part":"home and services"},
+{"id":"penuh","word":"penuh","en":"full","ex":"Sudah penuh.","exEn":"It's full already.","cat":"adjectives","diff":1,"part":"home and services"},
+{"id":"kolam","word":"kolam renang","en":"swimming pool","ex":"Kolam renangnya kotor.","exEn":"The pool is dirty.","cat":"work","diff":2,"part":"home and services"},
+{"id":"kaporit","word":"kaporit","en":"chlorine","ex":"Perlu tambah kaporit.","exEn":"It needs more chlorine.","cat":"work","diff":3,"note":"Pool chlorine. 'Bau kaporit' = it smells of chlorine.","part":"home and services"},
+{"id":"taman","word":"taman","en":"garden","ex":"Tamannya bagus sekali.","exEn":"The garden looks great.","cat":"work","diff":1,"part":"home and services"},
+{"id":"rumput","word":"rumput","en":"grass","ex":"Rumputnya sudah panjang.","exEn":"The grass has got long.","cat":"work","diff":2,"part":"home and services"},
+{"id":"pohon","word":"pohon","en":"tree","ex":"Pohonnya perlu dipotong.","exEn":"The tree needs cutting back.","cat":"work","diff":2,"part":"home and services"},
+{"id":"daun","word":"daun","en":"leaf · leaves","ex":"Banyak daun di kolam.","exEn":"Lots of leaves in the pool.","cat":"work","diff":2,"part":"home and services"},
+{"id":"siram","word":"siram","en":"to water · flush","ex":"Tolong siram tanamannya.","exEn":"Please water the plants.","cat":"work","diff":2,"part":"home and services"},
+{"id":"tanaman","word":"tanaman","en":"plant","ex":"Tanamannya kering.","exEn":"The plants are dry.","cat":"work","diff":2,"part":"home and services"},
+{"id":"sapu","word":"sapu","en":"to sweep · broom","ex":"Tolong sapu terasnya.","exEn":"Please sweep the terrace.","cat":"work","diff":2,"part":"home and services"},
+{"id":"pel","word":"pel","en":"to mop","ex":"Lantainya sudah dipel?","exEn":"Has the floor been mopped?","cat":"work","diff":2,"part":"home and services"},
+{"id":"lantai","word":"lantai","en":"floor","ex":"Lantainya licin.","exEn":"The floor is slippery.","cat":"work","diff":2,"part":"home and services"},
+{"id":"licin","word":"licin","en":"slippery","ex":"Hati-hati, licin.","exEn":"Careful, it's slippery.","cat":"adjectives","diff":2,"part":"home and services"},
+{"id":"debu","word":"debu","en":"dust","ex":"Banyak debu di sini.","exEn":"There's a lot of dust here.","cat":"work","diff":2,"part":"home and services"},
+{"id":"cuci-baju","word":"cuci baju","en":"laundry · wash clothes","ex":"Cuci baju hari ini, ya.","exEn":"Do the laundry today, please.","cat":"work","diff":1,"part":"home and services"},
+{"id":"setrika","word":"setrika","en":"to iron","ex":"Tolong setrika yang ini.","exEn":"Please iron these.","cat":"work","diff":2,"part":"home and services"},
+{"id":"jemur","word":"jemur","en":"to hang out to dry","ex":"Jemur di belakang aja.","exEn":"Hang it out at the back.","cat":"work","diff":2,"part":"home and services"},
+{"id":"kering","word":"kering","en":"dry","ex":"Belum kering.","exEn":"It's not dry yet.","cat":"adjectives","diff":1,"part":"home and services"},
+{"id":"basah","word":"basah","en":"wet","ex":"Bajunya masih basah.","exEn":"The clothes are still wet.","cat":"adjectives","diff":1,"part":"home and services"},
+{"id":"handuk","word":"handuk","en":"towel","ex":"Minta handuk bersih.","exEn":"Could I have a clean towel.","cat":"work","diff":1,"part":"home and services"},
+{"id":"sprei","word":"sprei","en":"bed sheet","ex":"Ganti sprei, ya.","exEn":"Change the sheets, please.","cat":"work","diff":2,"part":"home and services"},
+{"id":"bantal","word":"bantal","en":"pillow","ex":"Minta bantal satu lagi.","exEn":"Could I have another pillow.","cat":"work","diff":1,"part":"home and services"},
+{"id":"tempat-tidur","word":"tempat tidur","en":"bed","ex":"Tempat tidurnya keras.","exEn":"The bed is hard.","cat":"work","diff":1,"part":"home and services"},
+{"id":"tidur","word":"tidur","en":"to sleep","ex":"Saya mau tidur.","exEn":"I'm going to sleep.","cat":"verbs","diff":1,"part":"home and services"},
+{"id":"bangun","word":"bangun","en":"to wake up · to build","ex":"Bangun jam berapa?","exEn":"What time do you wake up?","cat":"verbs","diff":1,"part":"home and services"},
+{"id":"nyamuk","word":"nyamuk","en":"mosquito","ex":"Banyak nyamuk malam ini.","exEn":"Lots of mosquitoes tonight.","cat":"work","diff":1,"part":"home and services"},
+{"id":"semut","word":"semut","en":"ant","ex":"Ada semut di dapur.","exEn":"There are ants in the kitchen.","cat":"work","diff":2,"part":"home and services"},
+{"id":"tikus","word":"tikus","en":"rat · mouse","ex":"Ada tikus di atap.","exEn":"There's a rat in the roof.","cat":"work","diff":2,"part":"home and services"},
+{"id":"cicak","word":"cicak","en":"house gecko","ex":"Cicaknya banyak banget.","exEn":"There are so many geckos.","cat":"work","diff":2,"part":"home and services"},
+{"id":"anjing","word":"anjing","en":"dog","ex":"Anjingnya galak.","exEn":"The dog is aggressive.","cat":"people","diff":1,"part":"home and services"},
+{"id":"galak","word":"galak","en":"fierce · aggressive","ex":"Hati-hati, anjingnya galak.","exEn":"Careful, that dog bites.","cat":"adjectives","diff":2,"part":"home and services"},
+{"id":"satpam","word":"satpam","en":"security guard","ex":"Bilang ke satpam aja.","exEn":"Just tell the security guard.","cat":"people","diff":2,"part":"home and services"},
+{"id":"pembantu","word":"pembantu","en":"house helper","ex":"Pembantunya datang jam delapan.","exEn":"The helper comes at eight.","cat":"people","diff":2,"note":"Many prefer the politer 'asisten rumah tangga'.","part":"home and services"},
+{"id":"tetangga","word":"tetangga","en":"neighbour","ex":"Tetangga saya orang Bali.","exEn":"My neighbour is Balinese.","cat":"people","diff":2,"part":"home and services"},
+{"id":"pemilik","word":"pemilik","en":"owner","ex":"Saya mau bicara dengan pemiliknya.","exEn":"I'd like to speak to the owner.","cat":"people","diff":3,"note":"Formal. In speech people say 'yang punya' — yang punya rumah = the house owner.","part":"home and services"},
+{"id":"sewa","word":"sewa","en":"to rent","ex":"Saya sewa per bulan.","exEn":"I rent it monthly.","cat":"shopping","diff":2,"part":"home and services"},
+{"id":"kontrak","word":"kontrak","en":"contract · lease","ex":"Kontraknya setahun.","exEn":"The lease is for a year.","cat":"shopping","diff":3,"note":"Property here is usually rented by the year and paid upfront. 'Kontrak setahun' is the normal unit.","part":"home and services"},
+{"id":"harga","word":"harga","en":"price","ex":"Harganya berapa?","exEn":"What's the price?","cat":"shopping","diff":1,"part":"home and services"},
+{"id":"diskon","word":"diskon","en":"discount","ex":"Ada diskon nggak?","exEn":"Is there a discount?","cat":"shopping","diff":1,"part":"home and services"},
+{"id":"tawar","word":"tawar","en":"to bargain","ex":"Boleh tawar sedikit?","exEn":"Can I bring the price down a bit?","cat":"shopping","diff":2,"part":"home and services"},
+{"id":"pas","word":"pas","en":"exact · just right","ex":"Harga pas, ya?","exEn":"Is that the fixed price?","cat":"shopping","diff":2,"note":"'harga pas' means no bargaining.","part":"home and services"},
+{"id":"total","word":"total","en":"total","ex":"Totalnya berapa?","exEn":"What's the total?","cat":"shopping","diff":1,"part":"home and services"},
+{"id":"struk","word":"struk","en":"receipt","ex":"Minta struknya, ya.","exEn":"Could I have the receipt.","cat":"shopping","diff":2,"part":"home and services"},
+{"id":"transfer","word":"transfer","en":"bank transfer","ex":"Bisa transfer aja?","exEn":"Can I just transfer it?","cat":"shopping","diff":2,"part":"home and services"},
+{"id":"rekening","word":"rekening","en":"bank account","ex":"Nomor rekeningnya berapa?","exEn":"What's the account number?","cat":"shopping","diff":3,"note":"'Nomor rekening' is what you ask for to transfer money. Often shortened to norek.","part":"home and services"},
+{"id":"atm","word":"ATM","en":"ATM","ex":"ATM terdekat di mana?","exEn":"Where's the nearest ATM?","cat":"shopping","diff":1,"part":"home and services"},
+{"id":"tarik-tunai","word":"tarik tunai","en":"withdraw cash","ex":"Mau tarik tunai.","exEn":"I want to withdraw cash.","cat":"shopping","diff":3,"note":"The wording on ATM screens. Cash still rules for small payments in Bali.","part":"home and services"},
+{"id":"pecah","word":"pecah","en":"broken (shattered)","ex":"Gelasnya pecah.","exEn":"The glass is broken.","cat":"adjectives","diff":2,"note":"For things that shatter. 'rusak' is for things that stop working.","part":"home and services"},
+{"id":"hilang","word":"hilang","en":"lost · missing","ex":"Kunci saya hilang.","exEn":"My key is missing.","cat":"adjectives","diff":1,"part":"home and services"},
+{"id":"ketinggalan","word":"ketinggalan","en":"left behind","ex":"HP saya ketinggalan.","exEn":"I left my phone behind.","cat":"verbs","diff":3,"note":"The ke--an shape means it happened TO you. 'HP saya ketinggalan' = I left my phone behind, accidentally.","part":"home and services"},
+{"id":"nemu","word":"menemukan","en":"to find","ex":"Saya menemukan dompet.","exEn":"I found a wallet.","cat":"verbs","diff":3,"note":"Formal. In speech, ketemu does the job: 'udah ketemu?' = did you find it?","part":"home and services"},
+{"id":"dompet","word":"dompet","en":"wallet","ex":"Dompet saya hilang.","exEn":"I've lost my wallet.","cat":"shopping","diff":2,"part":"home and services"},
+{"id":"hp","word":"HP","en":"mobile phone","ex":"Nomor HP kamu berapa?","exEn":"What's your mobile number?","cat":"work","diff":1,"note":"Pronounced ha-pay, from 'handphone'.","part":"home and services"},
+{"id":"nomor","word":"nomor","en":"number","ex":"Nomor berapa?","exEn":"Which number?","cat":"numbers","diff":1,"part":"home and services"},
+{"id":"sinyal","word":"sinyal","en":"signal · reception","ex":"Sinyalnya jelek di sini.","exEn":"The reception is bad here.","cat":"work","diff":2,"part":"home and services"},
+{"id":"pulsa","word":"pulsa","en":"phone credit","ex":"Pulsa saya habis.","exEn":"I'm out of credit.","cat":"work","diff":2,"part":"home and services"},
+{"id":"wifi","word":"wifi","en":"wifi","ex":"Password wifinya apa?","exEn":"What's the wifi password?","cat":"work","diff":1,"part":"home and services"},
+{"id":"lemot","word":"lemot","en":"slow (tech)","ex":"Internetnya lemot banget.","exEn":"The internet is really slow.","cat":"adjectives","diff":2,"note":"Slang, from 'lemah otak'. Used for slow wifi or devices.","part":"home and services"},
+{"id":"jelek","word":"jelek","en":"bad · ugly","ex":"Kualitasnya jelek.","exEn":"The quality is bad.","cat":"adjectives","diff":1,"part":"home and services"},
+{"id":"bengkel","word":"bengkel","en":"repair shop","ex":"Bawa ke bengkel aja.","exEn":"Just take it to the workshop.","cat":"transport","diff":2,"part":"home and services"},
+{"id":"servis","word":"servis","en":"to service","ex":"Motor saya mau diservis.","exEn":"My bike needs a service.","cat":"transport","diff":2,"part":"home and services"},
+{"id":"ban","word":"ban","en":"tyre","ex":"Bannya kempes.","exEn":"The tyre is flat.","cat":"transport","diff":2,"part":"home and services"},
+{"id":"kempes","word":"kempes","en":"flat (deflated)","ex":"Ban depan kempes.","exEn":"The front tyre is flat.","cat":"transport","diff":3,"note":"Anything that has lost its air — tyres, balls, airbeds. An actual puncture is bocor.","part":"home and services"},
+{"id":"rem","word":"rem","en":"brake","ex":"Remnya kurang pakem.","exEn":"The brakes are weak.","cat":"transport","diff":2,"part":"home and services"},
+{"id":"mesin","word":"mesin","en":"engine · machine","ex":"Mesinnya bunyi aneh.","exEn":"The engine makes a strange noise.","cat":"transport","diff":2,"part":"home and services"},
+{"id":"bunyi","word":"bunyi","en":"sound · noise","ex":"Ada bunyi aneh.","exEn":"There's a strange noise.","cat":"work","diff":2,"part":"home and services"},
+{"id":"aneh","word":"aneh","en":"strange","ex":"Aneh, ya.","exEn":"That's strange.","cat":"adjectives","diff":2,"part":"home and services"},
+{"id":"oli","word":"oli","en":"engine oil","ex":"Ganti oli, ya.","exEn":"Change the oil, please.","cat":"transport","diff":2,"part":"home and services"},
+{"id":"helm","word":"helm","en":"helmet","ex":"Jangan lupa pakai helm.","exEn":"Don't forget your helmet.","cat":"transport","diff":1,"part":"home and services"},
+{"id":"sim","word":"SIM","en":"driving licence","ex":"SIM internasional bisa?","exEn":"Is an international licence okay?","cat":"transport","diff":2,"note":"Pronounced 'seem'.","part":"home and services"},
+{"id":"stnk","word":"STNK","en":"vehicle registration","ex":"Bawa STNK-nya, ya.","exEn":"Bring the registration papers.","cat":"transport","diff":3,"note":"Say the letters: es-te-en-ka. Police check it alongside your SIM, so keep both on the bike.","part":"home and services"},
+{"id":"polisi","word":"polisi","en":"police","ex":"Ada polisi di depan.","exEn":"There are police up ahead.","cat":"people","diff":1,"part":"home and services"},
+{"id":"tilang","word":"tilang","en":"traffic fine","ex":"Saya kena tilang.","exEn":"I got a traffic fine.","cat":"transport","diff":3,"note":"A roadside stop ends in either a tilang or a negotiated settlement. Asking for the official tilang is your right.","part":"home and services"},
+{"id":"denda","word":"denda","en":"fine · penalty","ex":"Dendanya berapa?","exEn":"How much is the fine?","cat":"shopping","diff":3,"note":"Any penalty fee — traffic, a late payment, or overstaying a visa (which is charged per day).","part":"home and services"},
+{"id":"jalan-raya","word":"jalan raya","en":"main road","ex":"Di jalan raya, sebelah kanan.","exEn":"On the main road, on the right.","cat":"directions","diff":2,"part":"home and services"},
+{"id":"gang","word":"gang","en":"small lane","ex":"Masuk gang kecil itu.","exEn":"Go into that small lane.","cat":"directions","diff":2,"note":"Bali addresses are full of these.","part":"home and services"},
+{"id":"perempatan","word":"perempatan","en":"crossroads","ex":"Belok kiri di perempatan.","exEn":"Turn left at the crossroads.","cat":"directions","diff":3,"note":"From empat, four. A T-junction is pertigaan, from tiga.","part":"home and services"},
+{"id":"bundaran","word":"bundaran","en":"roundabout","ex":"Lurus terus sampai bundaran.","exEn":"Straight on until the roundabout.","cat":"directions","diff":3,"note":"From bundar, round. Directions in Bali lean on these as landmarks.","part":"home and services"},
+{"id":"sebelah","word":"sebelah","en":"next to · side","ex":"Di sebelah warung.","exEn":"Next to the warung.","cat":"directions","diff":2,"part":"home and services"},
+{"id":"seberang","word":"seberang","en":"across from","ex":"Di seberang jalan.","exEn":"Across the road.","cat":"directions","diff":3,"note":"'Di seberang' = across from. The verb is menyeberang — to cross over.","part":"home and services"},
+{"id":"ujung","word":"ujung","en":"end · tip","ex":"Di ujung jalan.","exEn":"At the end of the road.","cat":"directions","diff":2,"part":"home and services"},
+{"id":"tengah","word":"tengah","en":"middle","ex":"Di tengah kota.","exEn":"In the middle of town.","cat":"directions","diff":2,"part":"home and services"},
+{"id":"pantai","word":"pantai","en":"beach","ex":"Ke pantai, yuk.","exEn":"Let's go to the beach.","cat":"directions","diff":1,"part":"home and services"},
+{"id":"sawah","word":"sawah","en":"rice field","ex":"Pemandangan sawahnya bagus.","exEn":"The rice field view is lovely.","cat":"directions","diff":2,"part":"home and services"},
+{"id":"desa","word":"desa","en":"village","ex":"Desanya masih tradisional.","exEn":"The village is still traditional.","cat":"directions","diff":2,"part":"home and services"},
+{"id":"kota","word":"kota","en":"city · town","ex":"Saya mau ke kota.","exEn":"I'm going into town.","cat":"directions","diff":1,"part":"home and services"},
+{"id":"warung","word":"warung","en":"small local eatery","ex":"Makan di warung aja.","exEn":"Let's just eat at a warung.","cat":"food","diff":1,"part":"home and services"},
+{"id":"hujan","word":"hujan","en":"rain","ex":"Hujan deras sekali.","exEn":"It's raining hard.","cat":"time","diff":1,"part":"home and services"},
+{"id":"deras","word":"deras","en":"heavy (rain)","ex":"Hujannya deras.","exEn":"The rain is heavy.","cat":"adjectives","diff":2,"part":"home and services"},
+{"id":"angin","word":"angin","en":"wind","ex":"Anginnya kencang.","exEn":"The wind is strong.","cat":"time","diff":2,"part":"home and services"},
+{"id":"kencang","word":"kencang","en":"strong · fast","ex":"Jangan terlalu kencang.","exEn":"Don't go too fast.","cat":"adjectives","diff":2,"part":"home and services"},
+{"id":"panas-terik","word":"terik","en":"scorching","ex":"Panas terik hari ini.","exEn":"It's scorching today.","cat":"adjectives","diff":3,"note":"The harsh midday sun specifically, a step beyond plain panas.","part":"home and services"},
+{"id":"mendung","word":"mendung","en":"overcast","ex":"Mendung, mungkin hujan.","exEn":"It's overcast, might rain.","cat":"time","diff":3,"note":"Grey and heavy, rain coming. Merely cloudy is berawan.","part":"home and services"},
+{"id":"banjir","word":"banjir","en":"flood","ex":"Jalannya banjir.","exEn":"The road is flooded.","cat":"transport","diff":2,"part":"home and services"},
+{"id":"musim","word":"musim","en":"season","ex":"Sekarang musim hujan.","exEn":"It's the rainy season now.","cat":"time","diff":2,"part":"home and services"},
+{"id":"matahari","word":"matahari","en":"sun","ex":"Mataharinya kuat sekali.","exEn":"The sun is very strong.","cat":"time","diff":2,"part":"home and services"},
+{"id":"sakit","word":"sakit","en":"sick · painful","ex":"Perut saya sakit.","exEn":"My stomach hurts.","cat":"health","diff":1,"part":"life and health"},
+{"id":"demam","word":"demam","en":"fever","ex":"Saya demam dari kemarin.","exEn":"I've had a fever since yesterday.","cat":"health","diff":2,"part":"life and health"},
+{"id":"obat","word":"obat","en":"medicine","ex":"Ada obat untuk ini?","exEn":"Do you have medicine for this?","cat":"health","diff":1,"part":"life and health"},
+{"id":"apotek","word":"apotek","en":"pharmacy","ex":"Apotek terdekat di mana?","exEn":"Where's the nearest pharmacy?","cat":"health","diff":2,"part":"life and health"},
+{"id":"dokter","word":"dokter","en":"doctor","ex":"Saya perlu ke dokter.","exEn":"I need to see a doctor.","cat":"health","diff":1,"part":"life and health"},
+{"id":"klinik","word":"klinik","en":"clinic","ex":"Ada klinik dekat sini?","exEn":"Is there a clinic near here?","cat":"health","diff":2,"part":"life and health"},
+{"id":"rumah-sakit","word":"rumah sakit","en":"hospital","ex":"Bawa ke rumah sakit.","exEn":"Take them to the hospital.","cat":"health","diff":1,"part":"life and health"},
+{"id":"perut","word":"perut","en":"stomach","ex":"Perut saya nggak enak.","exEn":"My stomach feels off.","cat":"health","diff":1,"part":"life and health"},
+{"id":"kepala","word":"kepala","en":"head","ex":"Kepala saya pusing.","exEn":"My head is spinning.","cat":"health","diff":1,"part":"life and health"},
+{"id":"pusing","word":"pusing","en":"dizzy · headache","ex":"Saya pusing.","exEn":"I feel dizzy.","cat":"health","diff":1,"note":"Also used for 'stressed out' figuratively.","part":"life and health"},
+{"id":"tangan","word":"tangan","en":"hand · arm","ex":"Tangan saya luka.","exEn":"I hurt my hand.","cat":"health","diff":1,"part":"life and health"},
+{"id":"kaki","word":"kaki","en":"foot · leg","ex":"Kaki saya sakit.","exEn":"My leg hurts.","cat":"health","diff":1,"part":"life and health"},
+{"id":"gigi","word":"gigi","en":"tooth","ex":"Gigi saya sakit.","exEn":"I have toothache.","cat":"health","diff":2,"part":"life and health"},
+{"id":"luka","word":"luka","en":"wound · injured","ex":"Lukanya harus dibersihkan.","exEn":"The wound needs cleaning.","cat":"health","diff":2,"part":"life and health"},
+{"id":"jatuh","word":"jatuh","en":"to fall","ex":"Saya jatuh dari motor.","exEn":"I fell off the bike.","cat":"health","diff":2,"part":"life and health"},
+{"id":"muntah","word":"muntah","en":"to vomit","ex":"Saya muntah semalam.","exEn":"I was sick last night.","cat":"health","diff":3,"note":"Said plainly and without embarrassment — use it directly with a doctor or pharmacist.","part":"life and health"},
+{"id":"diare","word":"diare","en":"diarrhoea","ex":"Saya kena diare.","exEn":"I've got diarrhoea.","cat":"health","diff":3,"note":"Also 'sakit perut'. You will need this in Bali.","part":"life and health"},
+{"id":"alergi","word":"alergi","en":"allergic","ex":"Saya alergi seafood.","exEn":"I'm allergic to seafood.","cat":"health","diff":2,"part":"life and health"},
+{"id":"sembuh","word":"sembuh","en":"to recover","ex":"Semoga cepat sembuh.","exEn":"Get well soon.","cat":"health","diff":2,"note":"'Semoga cepat sembuh' is the standard get-well phrase.","part":"life and health"},
+{"id":"istirahat","word":"istirahat","en":"to rest","ex":"Kamu harus istirahat.","exEn":"You need to rest.","cat":"health","diff":2,"part":"life and health"},
+{"id":"asuransi","word":"asuransi","en":"insurance","ex":"Saya punya asuransi.","exEn":"I have insurance.","cat":"health","diff":3,"note":"Many clinics here want payment upfront and you claim later, so ask 'terima asuransi?' before treatment.","part":"life and health"},
+{"id":"nasi","word":"nasi","en":"rice (cooked)","ex":"Nasi putih satu.","exEn":"One plain rice.","cat":"food","diff":1,"part":"life and health"},
+{"id":"mie","word":"mie","en":"noodles","ex":"Mie goreng satu, ya.","exEn":"One fried noodles, please.","cat":"food","diff":1,"part":"life and health"},
+{"id":"goreng","word":"goreng","en":"fried","ex":"Nasi goreng pedas.","exEn":"Spicy fried rice.","cat":"food","diff":1,"part":"life and health"},
+{"id":"bakar","word":"bakar","en":"grilled · burnt","ex":"Ikan bakar, ya.","exEn":"Grilled fish, please.","cat":"food","diff":2,"part":"life and health"},
+{"id":"rebus","word":"rebus","en":"boiled","ex":"Telur rebus dua.","exEn":"Two boiled eggs.","cat":"food","diff":2,"part":"life and health"},
+{"id":"ayam","word":"ayam","en":"chicken","ex":"Ayam goreng satu.","exEn":"One fried chicken.","cat":"food","diff":1,"part":"life and health"},
+{"id":"ikan","word":"ikan","en":"fish","ex":"Ikannya segar?","exEn":"Is the fish fresh?","cat":"food","diff":1,"part":"life and health"},
+{"id":"babi","word":"babi","en":"pork","ex":"Ini ada babi?","exEn":"Does this contain pork?","cat":"food","diff":2,"part":"life and health"},
+{"id":"sapi","word":"sapi","en":"beef · cow","ex":"Sate sapi satu porsi.","exEn":"One portion of beef satay.","cat":"food","diff":2,"part":"life and health"},
+{"id":"sayur","word":"sayur","en":"vegetable","ex":"Tambah sayur, ya.","exEn":"Add vegetables, please.","cat":"food","diff":1,"part":"life and health"},
+{"id":"buah","word":"buah","en":"fruit","ex":"Buahnya manis.","exEn":"The fruit is sweet.","cat":"food","diff":1,"part":"life and health"},
+{"id":"telur","word":"telur","en":"egg","ex":"Pakai telur, ya.","exEn":"With an egg, please.","cat":"food","diff":1,"part":"life and health"},
+{"id":"manis","word":"manis","en":"sweet","ex":"Jangan terlalu manis.","exEn":"Not too sweet.","cat":"food","diff":1,"part":"life and health"},
+{"id":"asin","word":"asin","en":"salty","ex":"Agak asin.","exEn":"It's a bit salty.","cat":"food","diff":2,"part":"life and health"},
+{"id":"asam","word":"asam","en":"sour","ex":"Rasanya asam.","exEn":"It tastes sour.","cat":"food","diff":2,"part":"life and health"},
+{"id":"garam","word":"garam","en":"salt","ex":"Minta garam, dong.","exEn":"Could I have some salt.","cat":"food","diff":2,"part":"life and health"},
+{"id":"gula","word":"gula","en":"sugar","ex":"Tanpa gula, ya.","exEn":"No sugar, please.","cat":"food","diff":1,"part":"life and health"},
+{"id":"sambal","word":"sambal","en":"chilli sauce","ex":"Sambalnya pisah, ya.","exEn":"Chilli on the side, please.","cat":"food","diff":1,"part":"life and health"},
+{"id":"pisah","word":"pisah","en":"separate","ex":"Bayar pisah, ya.","exEn":"We'll pay separately.","cat":"food","diff":2,"part":"life and health"},
+{"id":"kopi","word":"kopi","en":"coffee","ex":"Kopi susu satu.","exEn":"One coffee with milk.","cat":"food","diff":1,"part":"life and health"},
+{"id":"teh","word":"teh","en":"tea","ex":"Teh tawar, ya.","exEn":"Unsweetened tea, please.","cat":"food","diff":1,"note":"'teh tawar' = no sugar; sweet is the default here.","part":"life and health"},
+{"id":"susu","word":"susu","en":"milk","ex":"Pakai susu?","exEn":"With milk?","cat":"food","diff":1,"part":"life and health"},
+{"id":"segar","word":"segar","en":"fresh","ex":"Jusnya segar.","exEn":"The juice is fresh.","cat":"food","diff":2,"part":"life and health"},
+{"id":"porsi","word":"porsi","en":"portion","ex":"Satu porsi cukup.","exEn":"One portion is enough.","cat":"food","diff":2,"part":"life and health"},
+{"id":"menu","word":"menu","en":"menu","ex":"Boleh lihat menunya?","exEn":"May I see the menu?","cat":"food","diff":1,"part":"life and health"},
+{"id":"halal","word":"halal","en":"halal","ex":"Ini halal?","exEn":"Is this halal?","cat":"food","diff":2,"part":"life and health"},
+{"id":"vegetarian","word":"vegetarian","en":"vegetarian","ex":"Saya vegetarian.","exEn":"I'm vegetarian.","cat":"food","diff":2,"part":"life and health"},
+{"id":"kenyang","word":"kenyang","en":"full (from eating)","ex":"Sudah kenyang, terima kasih.","exEn":"I'm full, thank you.","cat":"food","diff":2,"part":"life and health"},
+{"id":"visa","word":"visa","en":"visa","ex":"Visa saya habis bulan depan.","exEn":"My visa expires next month.","cat":"admin","diff":2,"part":"life and health"},
+{"id":"paspor","word":"paspor","en":"passport","ex":"Bawa paspor asli.","exEn":"Bring the original passport.","cat":"admin","diff":2,"part":"life and health"},
+{"id":"imigrasi","word":"imigrasi","en":"immigration","ex":"Harus ke kantor imigrasi.","exEn":"You have to go to the immigration office.","cat":"admin","diff":3,"note":"The office, not the concept. Visa extensions are done in person at one.","part":"life and health"},
+{"id":"kantor","word":"kantor","en":"office","ex":"Kantornya buka jam berapa?","exEn":"What time does the office open?","cat":"admin","diff":1,"part":"life and health"},
+{"id":"surat","word":"surat","en":"letter · document","ex":"Suratnya sudah siap.","exEn":"The document is ready.","cat":"admin","diff":2,"part":"life and health"},
+{"id":"tanda-tangan","word":"tanda tangan","en":"signature","ex":"Tolong tanda tangan di sini.","exEn":"Please sign here.","cat":"admin","diff":3,"note":"Literally 'hand sign'. Abbreviated ttd on forms.","part":"life and health"},
+{"id":"fotokopi","word":"fotokopi","en":"photocopy","ex":"Perlu fotokopi paspor.","exEn":"A passport photocopy is needed.","cat":"admin","diff":2,"part":"life and health"},
+{"id":"asli","word":"asli","en":"original · genuine","ex":"Ini asli atau palsu?","exEn":"Is this genuine or fake?","cat":"adjectives","diff":2,"part":"life and health"},
+{"id":"palsu","word":"palsu","en":"fake","ex":"Hati-hati, banyak yang palsu.","exEn":"Careful, there are a lot of fakes.","cat":"adjectives","diff":2,"part":"life and health"},
+{"id":"resmi","word":"resmi","en":"official","ex":"Ini agen resmi?","exEn":"Is this an official agent?","cat":"adjectives","diff":3,"note":"Worth asking before paying anyone for paperwork: 'ini agen resmi?'","part":"life and health"},
+{"id":"izin","word":"izin","en":"permit · permission","ex":"Perlu izin dulu.","exEn":"You need a permit first.","cat":"admin","diff":3,"note":"'Minta izin' = to ask permission. 'Izin tinggal' = residence permit.","part":"life and health"},
+{"id":"berlaku","word":"berlaku","en":"valid","ex":"Berlaku sampai kapan?","exEn":"Valid until when?","cat":"admin","diff":3,"note":"Printed on every document you own here: 'berlaku sampai' = valid until.","part":"life and health"},
+{"id":"perpanjang","word":"perpanjang","en":"to extend · renew","ex":"Mau perpanjang visa.","exEn":"I want to extend my visa.","cat":"admin","diff":3,"note":"The verb for visas, leases and licences alike. 'Perpanjang visa' will be your most-used pairing.","part":"life and health"},
+{"id":"biaya","word":"biaya","en":"cost · fee","ex":"Biayanya berapa?","exEn":"How much is the fee?","cat":"shopping","diff":2,"part":"life and health"},
+{"id":"gratis","word":"gratis","en":"free of charge","ex":"Ini gratis?","exEn":"Is this free?","cat":"shopping","diff":1,"part":"life and health"},
+{"id":"bayar-dulu","word":"bayar di muka","en":"pay upfront","ex":"Harus bayar di muka.","exEn":"You have to pay upfront.","cat":"shopping","diff":3,"note":"Normal for rentals and larger jobs here. The opposite is bayar belakangan.","part":"life and health"},
+{"id":"cicil","word":"cicil","en":"to pay in instalments","ex":"Bisa dicicil?","exEn":"Can I pay in instalments?","cat":"shopping","diff":3,"note":"You'll hear the passive: 'bisa dicicil?' = can I pay it off in instalments?","part":"life and health"},
+{"id":"utang","word":"utang","en":"debt","ex":"Masih ada utang sedikit.","exEn":"There's still a small debt.","cat":"shopping","diff":3,"note":"Also spelled hutang. Small running tabs at a warung are completely normal and carry no stigma.","part":"life and health"},
+{"id":"janji","word":"janji","en":"promise · appointment","ex":"Sudah janji jam dua.","exEn":"We agreed on two o'clock.","cat":"people","diff":2,"part":"life and health"},
+{"id":"telat","word":"telat","en":"late","ex":"Maaf, saya telat.","exEn":"Sorry, I'm late.","cat":"time","diff":1,"note":"Spoken. Formal: terlambat.","part":"life and health"},
+{"id":"tepat-waktu","word":"tepat waktu","en":"on time","ex":"Dia selalu tepat waktu.","exEn":"They're always on time.","cat":"time","diff":3,"note":"Worth saying explicitly when it matters — jam karet, 'rubber time', is the local default.","part":"life and health"},
+{"id":"batal","word":"batal","en":"cancelled","ex":"Acaranya batal.","exEn":"The event is cancelled.","cat":"verbs","diff":2,"part":"life and health"},
+{"id":"tunda","word":"tunda","en":"to postpone","ex":"Ditunda sampai besok.","exEn":"Postponed until tomorrow.","cat":"verbs","diff":3,"note":"Usually passive: 'ditunda' = it's been postponed.","part":"life and health"},
+{"id":"acara","word":"acara","en":"event · plan","ex":"Ada acara besok?","exEn":"Do you have plans tomorrow?","cat":"people","diff":2,"part":"life and health"},
+{"id":"upacara","word":"upacara","en":"ceremony","ex":"Besok ada upacara di desa.","exEn":"There's a ceremony in the village tomorrow.","cat":"people","diff":2,"note":"Central to Balinese life — expect closures and traffic.","part":"life and health"},
+{"id":"libur","word":"libur","en":"day off · holiday","ex":"Besok libur, ya?","exEn":"Is tomorrow a day off?","cat":"time","diff":1,"part":"life and health"},
+{"id":"cuti","word":"cuti","en":"leave (from work)","ex":"Saya ambil cuti minggu depan.","exEn":"I'm taking leave next week.","cat":"work","diff":3,"note":"Paid leave. Staff will ask for cuti around Nyepi and Galungan.","part":"life and health"},
+{"id":"gaji","word":"gaji","en":"salary","ex":"Gajinya dibayar tiap bulan.","exEn":"The salary is paid monthly.","cat":"work","diff":3,"note":"Paid monthly as standard. Payday itself is gajian.","part":"life and health"},
+{"id":"bos","word":"bos","en":"boss","ex":"Saya tanya bos dulu.","exEn":"Let me ask my boss first.","cat":"people","diff":1,"part":"life and health"},
+{"id":"karyawan","word":"karyawan","en":"employee · staff","ex":"Karyawannya ramah.","exEn":"The staff are friendly.","cat":"people","diff":3,"note":"The formal word for staff. Staf and pegawai are also used.","part":"life and health"},
+{"id":"ramah","word":"ramah","en":"friendly","ex":"Orangnya ramah sekali.","exEn":"They're very friendly.","cat":"adjectives","diff":2,"part":"life and health"},
+{"id":"sopan","word":"sopan","en":"polite","ex":"Dia sangat sopan.","exEn":"They're very polite.","cat":"adjectives","diff":2,"part":"life and health"},
+{"id":"kasar","word":"kasar","en":"rude · rough","ex":"Jangan kasar, ya.","exEn":"Don't be rude.","cat":"adjectives","diff":2,"part":"life and health"},
+{"id":"sabar","word":"sabar","en":"patient","ex":"Sabar, ya.","exEn":"Be patient.","cat":"adjectives","diff":1,"note":"'Sabar ya' is said constantly — a whole attitude in one word.","part":"life and health"},
+{"id":"santai","word":"santai","en":"relaxed","ex":"Santai aja.","exEn":"Take it easy.","cat":"adjectives","diff":1,"part":"life and health"},
+{"id":"serius","word":"serius","en":"serious","ex":"Serius nih?","exEn":"Are you serious?","cat":"adjectives","diff":2,"part":"life and health"},
+{"id":"jujur","word":"jujur","en":"honest","ex":"Jujur aja, ya.","exEn":"Let's be honest.","cat":"adjectives","diff":2,"part":"life and health"},
+{"id":"bohong","word":"bohong","en":"to lie","ex":"Jangan bohong.","exEn":"Don't lie.","cat":"verbs","diff":2,"part":"life and health"},
+{"id":"percaya","word":"percaya","en":"to trust · believe","ex":"Saya percaya sama kamu.","exEn":"I trust you.","cat":"verbs","diff":2,"part":"life and health"},
+{"id":"setuju","word":"setuju","en":"to agree","ex":"Saya setuju.","exEn":"I agree.","cat":"verbs","diff":2,"part":"life and health"},
+{"id":"keberatan","word":"keberatan","en":"to object · mind","ex":"Kalau nggak keberatan.","exEn":"If you don't mind.","cat":"verbs","diff":3,"note":"Almost always in the polite negative: 'kalau nggak keberatan' = if you don't mind.","part":"life and health"},
+{"id":"maklum","word":"maklum","en":"to be understanding","ex":"Maklum, masih baru.","exEn":"Understandably — they're still new.","cat":"expressions","diff":3,"note":"Said when making allowances for someone.","part":"life and health"},
+{"id":"kira","word":"kira","en":"to guess · assume","ex":"Saya kira sudah selesai.","exEn":"I assumed it was finished.","cat":"verbs","diff":2,"part":"life and health"},
+{"id":"harap","word":"harap","en":"please (formal)","ex":"Harap tunggu sebentar.","exEn":"Please wait a moment.","cat":"verbs","diff":3,"note":"Formal request, mostly seen on signs.","part":"life and health"},
+{"id":"semoga","word":"semoga","en":"hopefully","ex":"Semoga berhasil.","exEn":"Good luck.","cat":"expressions","diff":2,"part":"life and health"},
+{"id":"untung","word":"untung","en":"luckily · profit","ex":"Untung nggak hujan.","exEn":"Luckily it didn't rain.","cat":"expressions","diff":2,"part":"life and health"},
+{"id":"sayang","word":"sayang","en":"what a shame · dear","ex":"Sayang sekali.","exEn":"What a shame.","cat":"expressions","diff":2,"note":"Also a term of affection.","part":"life and health"},
+{"id":"wajar","word":"wajar","en":"reasonable · normal","ex":"Harganya wajar.","exEn":"The price is reasonable.","cat":"adjectives","diff":3,"note":"Signals that a price or a behaviour is within normal bounds. Handy mid-negotiation: 'harganya wajar'.","part":"life and health"},
+{"id":"parah","word":"parah","en":"severe · terrible","ex":"Macetnya parah.","exEn":"The traffic is terrible.","cat":"adjectives","diff":2,"part":"life and health"},
+{"id":"empat","word":"empat","en":"four","ex":"Untuk empat orang.","exEn":"For four people.","cat":"numbers","diff":1,"part":"life and health"},
+{"id":"enam","word":"enam","en":"six","ex":"Jam enam sore.","exEn":"Six in the evening.","cat":"numbers","diff":1,"part":"life and health"},
+{"id":"tujuh","word":"tujuh","en":"seven","ex":"Tujuh hari lagi.","exEn":"In seven days.","cat":"numbers","diff":1,"part":"life and health"},
+{"id":"delapan","word":"delapan","en":"eight","ex":"Jam delapan pagi.","exEn":"Eight in the morning.","cat":"numbers","diff":1,"part":"life and health"},
+{"id":"sembilan","word":"sembilan","en":"nine","ex":"Sembilan ribu.","exEn":"Nine thousand.","cat":"numbers","diff":1,"part":"life and health"},
+{"id":"belas","word":"belas","en":"-teen","ex":"Dua belas ribu.","exEn":"Twelve thousand.","cat":"numbers","diff":2,"note":"11-19: sebelas, dua belas, tiga belas…","part":"life and health"},
+{"id":"puluh","word":"puluh","en":"-ty (tens)","ex":"Tiga puluh ribu.","exEn":"Thirty thousand.","cat":"numbers","diff":2,"part":"life and health"},
+{"id":"ratus","word":"ratus","en":"hundred","ex":"Dua ratus ribu.","exEn":"Two hundred thousand.","cat":"numbers","diff":1,"part":"life and health"},
+{"id":"juta","word":"juta","en":"million","ex":"Satu juta rupiah.","exEn":"One million rupiah.","cat":"numbers","diff":1,"part":"life and health"},
+{"id":"pertama","word":"pertama","en":"first","ex":"Ini yang pertama.","exEn":"This is the first one.","cat":"numbers","diff":2,"part":"life and health"},
+{"id":"terakhir","word":"terakhir","en":"last","ex":"Ini yang terakhir.","exEn":"This is the last one.","cat":"numbers","diff":2,"part":"life and health"},
+{"id":"senin","word":"Senin","en":"Monday","ex":"Hari Senin aja.","exEn":"Monday, then.","cat":"time","diff":1,"part":"life and health"},
+{"id":"sabtu","word":"Sabtu","en":"Saturday","ex":"Sabtu saya libur.","exEn":"I'm off on Saturday.","cat":"time","diff":1,"part":"life and health"},
+{"id":"minggu-hari","word":"Minggu","en":"Sunday","ex":"Hari Minggu tutup.","exEn":"Closed on Sundays.","cat":"time","diff":1,"part":"life and health"},
+{"id":"tanggal","word":"tanggal","en":"date","ex":"Tanggal berapa?","exEn":"What date?","cat":"time","diff":2,"part":"life and health"}];
+// ── scheduler ────────────────────────────────────────────────────────────────
+// Pure functions. No Scriptable APIs, no I/O — so this file is unit-testable
+// under plain node (see tools/simulate.js).
+
+const LADDER = [1, 3, 7, 14, 30, 60];          // days, indexed by card.step
+const EASE_MIN = 0.80, EASE_MAX = 1.30;
+const LEECH_LAPSES = 4;                         // lapses before a card is a leech
+const LEECH_STEP_CAP = 2;                       // leeches never exceed 7 days
+const HISTORY_KEEP = 8;                         // deepest read is slice(-5)
+
+// stage -> { fmt, dir, promote }
+const STAGES = {
+  1: { fmt: "intro",  dir: null,    promote: 0 },
+  2: { fmt: "mc",     dir: "id_en", promote: 2 },
+  3: { fmt: "mc",     dir: "en_id", promote: 2 },
+  4: { fmt: "recall", dir: "id_en", promote: 2 },
+  5: { fmt: "recall", dir: "en_id", promote: 3 },
+  6: { fmt: "recall", dir: "en_id", promote: null }
+};
+
+function newCard(dayKey) {
+  return {
+    stage: 1, step: 0, ease: 1.0,
+    intro: dayKey, last: null, next: dayKey,
+    correct: 0, wrong: 0, lapses: 0, streak: 0,
+    leech: false, history: []
+  };
+}
+
+// A word you already know. Parked at the production stage on a long interval
+// and excluded from review selection — you said you know it, so spending your
+// daily budget re-testing it would be the opposite of the point.
+function knownCard(dayKey) {
+  const c = newCard(dayKey);
+  c.stage = 6;
+  c.step  = LADDER.length - 1;
+  c.known = true;
+  c.last  = dayKey;
+  c.next  = addDays(dayKey, 180);
+  return c;
+}
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function intervalFor(card) {
+  let step = card.step;
+  if (card.leech) step = Math.min(step, LEECH_STEP_CAP);
+  return Math.max(1, Math.round(LADDER[clamp(step, 0, LADDER.length - 1)] * card.ease));
+}
+
+// Apply one graded answer. Mutates and returns the card.
+function grade(card, ok, dayKey, dir, fmt) {
+  if (ok) {
+    card.correct++;
+    card.streak++;
+    card.ease = clamp(+(card.ease + 0.05).toFixed(2), EASE_MIN, EASE_MAX);
+    card.step = Math.min(LADDER.length - 1, card.step + 1);
+
+    const rule = STAGES[card.stage];
+    if (rule && rule.promote !== null && card.streak >= rule.promote && card.stage < 6) {
+      card.stage++;
+      card.streak = 0;
+      card.step = Math.max(0, card.step - 1);   // re-test the harder format sooner
+    }
+    if (card.leech && card.streak >= 2) card.leech = false;
+  } else {
+    card.wrong++;
+    card.lapses++;
+    card.streak = 0;
+    card.ease = clamp(+(card.ease - 0.15).toFixed(2), EASE_MIN, EASE_MAX);
+    card.step = 0;                               // back to tomorrow
+
+    // Demote on a pattern, not on one slip. Knocking a word back a full stage
+    // every time you blank on it once makes stage 6 practically unreachable,
+    // and punishes a bad night rather than a genuine gap in knowledge.
+    const recentFails = card.history.slice(-2).filter(h => h[3] === false).length + 1;
+    if (card.stage > 2 && recentFails >= 2) card.stage--;
+
+    if (card.lapses >= LEECH_LAPSES) card.leech = true;
+  }
+
+  card.last = dayKey;
+  card.next = addDays(dayKey, intervalFor(card));
+  // Only the last 2-5 entries are ever read (demotion, recent form), but history
+  // was 57% of the state file — which the widget parses on every refresh.
+  card.history.push([dayKey, dir || "", fmt || "", !!ok]);
+  if (card.history.length > HISTORY_KEEP) card.history = card.history.slice(-HISTORY_KEEP);
+  return card;
+}
+
+function accuracy(card) {
+  const n = card.correct + card.wrong;
+  return n === 0 ? 0 : card.correct / n;
+}
+
+// Mastered = at the production stage (EN->ID recall) on a 30-day-plus interval.
+// Reaching that already required ~9 successful promotions, so the interval is
+// the evidence. Deliberately NOT gated on lifetime accuracy — a word you fumbled
+// in week one but now recall reliably is mastered, and the stat should say so.
+function isMastered(card) {
+  return !card.known && card.stage === 6 && card.step >= 4;
+}
+
+// Recent form, for the leech check — the last few answers, not all history.
+function recentAccuracy(card, n) {
+  const h = card.history.slice(-(n || 5));
+  if (!h.length) return 1;
+  return h.filter(x => x[3] === true).length / h.length;
+}
+
+function isLearning(card) {
+  return !card.known && card.stage >= 2 && card.stage <= 5;
+}
+
+// Which format/direction to test this card with, honouring the settings override.
+function promptFor(card, direction) {
+  const rule = STAGES[card.stage] || STAGES[2];
+  let dir = rule.dir, fmt = rule.fmt;
+  if (direction === "id_en" || direction === "en_id") dir = direction;
+  else if (direction === "both") dir = (card.correct + card.wrong) % 2 ? "en_id" : "id_en";
+  return { fmt, dir };
+}
+
+// ── selection ────────────────────────────────────────────────────────────────
+// Total order: score desc, then vocab index asc. Determinism here is what lets
+// the widget and the app compute the same plan with no coordination.
+function selectDue(cards, dayKey, limit, order) {
+  const due = [];
+  for (const id of order) {
+    const c = cards[id];
+    if (!c || c.stage < 2 || c.known) continue;
+    if (daysBetween(c.next, dayKey) < 0) continue;      // not due yet
+    due.push({ id, score: scoreCard(c, dayKey), idx: order.indexOf(id) });
+  }
+  due.sort((a, b) => (b.score - a.score) || (a.idx - b.idx));
+  return due.slice(0, limit).map(d => d.id);
+}
+
+function scoreCard(card, dayKey) {
+  const overdue = Math.max(0, daysBetween(card.next, dayKey));
+  return overdue + (card.leech ? 10 : 0) + card.lapses * 1.5;
+}
+
+// ── distractors ──────────────────────────────────────────────────────────────
+// Believable alternatives, drawn from words already encountered where possible.
+// Antonyms are welcome — "cheap" is the best possible distractor for "mahal".
+function distractors(vocab, target, introducedIds, rng, avoid) {
+  const pool = vocab.filter(v => v.id !== target.id);
+  const seen = new Set(introducedIds);
+  const skip = new Set(avoid || []);
+
+  const tiers = [
+    pool.filter(v => seen.has(v.id) && v.cat === target.cat),
+    pool.filter(v => seen.has(v.id) && v.diff === target.diff),
+    pool.filter(v => seen.has(v.id)),
+    pool.filter(v => v.cat === target.cat),   // early days: not enough seen words
+    pool
+  ];
+
+  const out = [], used = new Set([target.id]);
+  for (const tier of tiers) {
+    for (const v of shuffle(tier, rng)) {
+      if (out.length === 3) break;
+      if (used.has(v.id)) continue;
+      if (skip.has(v.id) && out.length < 3) continue;   // avoid last session's set
+      if (v.en === target.en) continue;                 // never two identical glosses
+      used.add(v.id); out.push(v);
+    }
+    if (out.length === 3) break;
+  }
+  // last resort: allow the avoided ones rather than render fewer than 4 options
+  if (out.length < 3) {
+    for (const v of shuffle(pool, rng)) {
+      if (out.length === 3) break;
+      if (used.has(v.id) || v.en === target.en) continue;
+      used.add(v.id); out.push(v);
+    }
+  }
+  return out;
+}
+
+// ── seeded PRNG ──────────────────────────────────────────────────────────────
+// Deterministic shuffles: the widget renders option order X, and the session
+// script must rebuild exactly X to know what "option 2" meant.
+function hash32(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function mulberry(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function shuffle(arr, rng) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+// ── date helpers (dayKey = "YYYY-MM-DD", always local) ───────────────────────
+function parseKey(k) {
+  const p = String(k).split("-").map(Number);
+  return new Date(p[0], p[1] - 1, p[2], 12, 0, 0);   // noon avoids DST edges
+}
+
+function fmtKey(d) {
+  const p = n => (n < 10 ? "0" : "") + n;
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+
+function addDays(k, n) {
+  const d = parseKey(k);
+  d.setDate(d.getDate() + n);
+  return fmtKey(d);
+}
+
+// positive when `to` is after `from`
+function daysBetween(from, to) {
+  return Math.round((parseKey(to) - parseKey(from)) / 86400000);
+}
+
+// ── day ──────────────────────────────────────────────────────────────────────
+// Day planning is a PURE function of (state, vocab, dayKey). The widget calls it
+// to render and writes nothing; the session script persists it when you open it.
+// Both therefore always agree on "today" with zero coordination and no races.
+// Pure — no Scriptable APIs. Depends on scheduler.js.
+
+const DAY_BOUNDARY_HOUR = 4;   // a review at 01:00 counts for the previous day
+
+function dayKeyOf(date) {
+  const d = new Date(date.getTime());
+  if (d.getHours() < DAY_BOUNDARY_HOUR) d.setDate(d.getDate() - 1);
+  return fmtKey(d);
+}
+
+function vocabOrder(vocab) { return vocab.map(v => v.id); }
+
+function byId(vocab) {
+  const m = {};
+  for (const v of vocab) m[v.id] = v;
+  return m;
+}
+
+// Every card actually due, not just the ones that fit today's budget.
+function countAllDue(cards, dayKey, order) {
+  let n = 0;
+  for (const id of order) {
+    const c = cards[id];
+    if (!c || c.stage < 2) continue;
+    if (daysBetween(c.next, dayKey) >= 0) n++;
+  }
+  return n;
+}
+
+function planNonce(dayKey, reviewIds, newIds) {
+  return hash32(dayKey + "|" + reviewIds.join(",") + "|" + newIds.join(",")).toString(36);
+}
+
+// The persisted plan always wins, so the day can't reshuffle under you.
+function planDay(state, vocab, dayKey) {
+  if (state.days[dayKey]) {
+    const p = state.days[dayKey];
+    // Self-heal: a word marked "I already know this" after today's plan was
+    // written must not keep showing up as today's word — least of all on the
+    // widget, which renders straight from the stored plan.
+    const kept = p.newIds.filter(id => !(state.cards[id] && state.cards[id].known));
+    let newIds = kept;
+    if (kept.length < p.newIds.length) {
+      const want = p.newIds.length - kept.length;
+      newIds = kept.concat(nextUnintroduced(state, vocab, want, kept));
+    }
+    return Object.assign({ dayKey: dayKey }, p, {
+      newIds: newIds,
+      nonce: planNonce(dayKey, p.reviewIds, newIds)
+    });
+  }
+
+  const order = vocabOrder(vocab);
+  const s = state.settings;
+
+  // ── the introduction gate ──────────────────────────────────────────────────
+  // RETENTION > NUMBER OF WORDS. Adding a word every single day outruns any
+  // realistic review budget: each word needs roughly nine reviews to reach
+  // stage 6, so a fixed 2/day drip leaves words half-learned forever and the
+  // due queue grows without bound. So: only introduce a new word on a day when
+  // you are actually keeping up. The system self-balances — words that reach
+  // long intervals free capacity, which reopens the gate.
+  // Threshold tuned by simulation (tools/simulate.js). At 1.0x the gate starves
+  // novelty; at 2x+ mastery collapses. 1.5x is the knee of the curve.
+  const backlog = countAllDue(state.cards, dayKey, order);
+  const gateOpen = backlog <= Math.round(s.reviewsPerDay * 1.5);
+
+  const newIds = [];
+  if (gateOpen) {
+    for (const id of order) {
+      if (newIds.length >= s.newWordsPerDay) break;
+      if (!state.cards[id]) newIds.push(id);
+    }
+  }
+
+  const reviewIds = selectDue(state.cards, dayKey, s.reviewsPerDay, order);
+
+  return {
+    dayKey: dayKey,
+    newIds: newIds,
+    reviewIds: reviewIds,
+    newSeen: false,
+    answered: {},
+    complete: false,
+    nonce: planNonce(dayKey, reviewIds, newIds)
+  };
+}
+
+// The next words in curriculum order that have never been seen.
+function nextUnintroduced(state, vocab, count, exclude) {
+  const skip = exclude || [];
+  const out = [];
+  for (const v of vocab) {
+    if (out.length >= count) break;
+    if (state.cards[v.id] || skip.indexOf(v.id) >= 0) continue;
+    out.push(v.id);
+  }
+  return out;
+}
+
+// "I already know this": park the word and pull the next one into today's slot,
+// so a whole stretch of familiar vocabulary can be cleared in one sitting
+// instead of one word per day for a month.
+function skipAsKnown(state, plan, vocab, dayKey, id) {
+  if (!state.cards[id]) state.cards[id] = knownCard(dayKey);
+  plan.newIds = nextUnintroduced(state, vocab, state.settings.newWordsPerDay);
+  plan.newSeen = false;
+  persistPlan(state, plan);
+  return plan.newIds[0] || null;
+}
+
+// Bulk version of "I know this", for the preselect screen.
+function markKnownBulk(state, plan, vocab, dayKey, ids) {
+  const wanted = {};
+  for (const id of ids || []) wanted[id] = true;
+
+  for (const v of vocab) {
+    const has = state.cards[v.id];
+    if (wanted[v.id]) {
+      // never downgrade a word already being learned properly
+      if (!has) state.cards[v.id] = knownCard(dayKey);
+    } else if (has && has.known) {
+      delete state.cards[v.id];              // unticked: hand it back to the queue
+    }
+  }
+  plan.newIds  = nextUnintroduced(state, vocab, state.settings.newWordsPerDay);
+  plan.newSeen = false;
+  persistPlan(state, plan);
+  return plan.newIds[0] || null;
+}
+
+// ── one more word ────────────────────────────────────────────────────────────
+// Some days the word is one you already knew, or you simply have more appetite.
+// EXTRA_MAX keeps that from turning into cramming: the gate exists to protect
+// retention, so extras stay a deliberate, capped, per-day decision.
+const EXTRA_MAX = 2;
+
+function extrasUsed(state, plan) {
+  return Math.max(0, plan.newIds.length - state.settings.newWordsPerDay);
+}
+function canAddExtra(state, vocab, plan) {
+  if (extrasUsed(state, plan) >= EXTRA_MAX) return false;
+  return nextUnintroduced(state, vocab, 1, plan.newIds).length > 0;
+}
+
+function addExtraWord(state, plan, vocab, dayKey) {
+  if (!canAddExtra(state, vocab, plan)) return null;
+  const id = nextUnintroduced(state, vocab, 1, plan.newIds)[0];
+  plan.newIds = plan.newIds.concat([id]);
+  plan.newSeen = false;                    // the new one still has to be seen
+  persistPlan(state, plan);
+  return id;
+}
+
+function persistPlan(state, plan) {
+  state.days[plan.dayKey] = {
+    newIds: plan.newIds,
+    reviewIds: plan.reviewIds,
+    newSeen: !!plan.newSeen,
+    answered: plan.answered || {},
+    complete: !!plan.complete
+  };
+  pruneDays(state);
+  return state.days[plan.dayKey];
+}
+
+function pruneDays(state, keep) {
+  const keys = Object.keys(state.days).sort();
+  const max = keep || 90;
+  while (keys.length > max) delete state.days[keys.shift()];
+}
+
+function planIsComplete(plan) {
+  if (!plan.newSeen && plan.newIds.length) return false;
+  for (const id of plan.reviewIds) if (!(id in (plan.answered || {}))) return false;
+  return true;
+}
+
+function remainingReviews(plan) {
+  return plan.reviewIds.filter(id => !(id in (plan.answered || {}))).length;
+}
+
+// ── session construction ─────────────────────────────────────────────────────
+// Deterministic: seeded on dayKey+cardId, so the widget and the session script
+// produce byte-identical option ordering. That is what makes a widget tap safe.
+function buildQuestion(state, vocabMap, vocab, dayKey, cardId) {
+  const card = state.cards[cardId];
+  const v = vocabMap[cardId];
+  if (!card || !v) return null;
+
+  const p = promptFor(card, state.settings.direction);
+  const q = {
+    id: cardId, fmt: p.fmt, dir: p.dir,
+    word: v.word, en: v.en, ex: v.ex, exEn: v.exEn, note: v.note || null,
+    stage: card.stage
+  };
+
+  if (p.fmt === "mc") {
+    const rng = mulberry(hash32(dayKey + "|" + cardId + "|" + p.dir));
+    const introduced = Object.keys(state.cards);
+    const ds = distractors(vocab, v, introduced, rng, card.lastD || []);
+    const opts = shuffle([v].concat(ds), rng);
+    q.options = opts.map(o => ({
+      id: o.id,
+      label: p.dir === "id_en" ? o.en : o.word
+    }));
+    q.answerIdx = opts.findIndex(o => o.id === v.id);
+    q.distractorIds = ds.map(o => o.id);
+  }
+  return q;
+}
+
+function buildSession(state, vocab, dayKey, plan) {
+  const vm = byId(vocab);
+  const newWords = plan.newIds.filter(id => !state.cards[id]).map(id => {
+    const v = vm[id];
+    return v ? {
+      id: v.id, word: v.word, en: v.en, ex: v.ex, exEn: v.exEn,
+      note: v.note || null, cat: v.cat
+    } : null;
+  }).filter(Boolean);
+
+  const questions = plan.reviewIds
+    .filter(id => !(id in (plan.answered || {})))
+    .map(id => buildQuestion(state, vm, vocab, dayKey, id))
+    .filter(Boolean);
+
+  // a look-ahead queue so "I know this" can advance without a round trip
+  const upcoming = nextUnintroduced(state, vocab, 30, plan.newIds).map(id => {
+    const v = vm[id];
+    return { id: v.id, word: v.word, en: v.en, ex: v.ex, exEn: v.exEn, note: v.note || null, cat: v.cat };
+  });
+  return {
+    newWords: newWords, questions: questions, newSeen: !!plan.newSeen,
+    upcoming: upcoming,
+    extraLeft: Math.max(0, EXTRA_MAX - extrasUsed(state, plan))
+  };
+}
+
+// ── mutations ────────────────────────────────────────────────────────────────
+function introduceNew(state, plan, dayKey) {
+  for (const id of plan.newIds) {
+    if (!state.cards[id]) {
+      state.cards[id] = newCard(dayKey);
+      state.cards[id].stage = 2;          // taught today, first tested tomorrow
+      state.cards[id].next = addDays(dayKey, 1);
+    }
+  }
+  plan.newSeen = true;
+  persistPlan(state, plan);
+}
+
+function recordAnswer(state, plan, dayKey, cardId, ok, dir, fmt, distractorIds) {
+  const card = state.cards[cardId];
+  if (!card) return false;
+  if (cardId in (plan.answered || {})) return false;   // never double-count
+
+  grade(card, ok, dayKey, dir, fmt);
+  if (distractorIds && distractorIds.length) card.lastD = distractorIds;
+
+  plan.answered = plan.answered || {};
+  plan.answered[cardId] = !!ok;
+  state.totals.reviewsCompleted++;
+  persistPlan(state, plan);
+  return true;
+}
+
+// Streak advances only on completion, and only once per day.
+function settleDay(state, plan, dayKey) {
+  if (!planIsComplete(plan)) return false;
+  plan.complete = true;
+  persistPlan(state, plan);
+
+  const st = state.streak;
+  if (st.lastCompletedDay === dayKey) return true;    // already counted
+
+  const gap = st.lastCompletedDay ? daysBetween(st.lastCompletedDay, dayKey) : null;
+  st.current = (gap === 1) ? st.current + 1 : 1;
+  st.lastCompletedDay = dayKey;
+  if (st.current > st.longest) st.longest = st.current;
+  return true;
+}
+
+// A streak is stale the moment a whole day is skipped.
+function liveStreak(state, dayKey) {
+  const st = state.streak;
+  if (!st.lastCompletedDay) return 0;
+  const gap = daysBetween(st.lastCompletedDay, dayKey);
+  return (gap === 0 || gap === 1) ? st.current : 0;
+}
+
+// The streak once today is settled. The completion screen renders from stats
+// captured before settling, so without this it congratulates you with
+// yesterday's number.
+function streakOnComplete(state, dayKey) {
+  const st = state.streak;
+  if (st.lastCompletedDay === dayKey) return st.current;
+  const gap = st.lastCompletedDay ? daysBetween(st.lastCompletedDay, dayKey) : null;
+  return (gap === 1) ? st.current + 1 : 1;
+}
+
+function stats(state, vocab, dayKey) {
+  const ids = Object.keys(state.cards);
+  let learning = 0, mastered = 0, known = 0;
+  for (const id of ids) {
+    const c = state.cards[id];
+    if (c.known) { known++; continue; }
+    if (isMastered(c)) mastered++;
+    else if (isLearning(c)) learning++;
+  }
+  const plan = planDay(state, vocab, dayKey);
+  return {
+    streak: liveStreak(state, dayKey),
+    streakOnComplete: streakOnComplete(state, dayKey),
+    longest: state.streak.longest,
+    introduced: ids.length - known,
+    known: known,
+    learning: learning,
+    mastered: mastered,
+    reviewsCompleted: state.totals.reviewsCompleted,
+    dueToday: plan.reviewIds.length,
+    backlog: countAllDue(state.cards, dayKey, vocabOrder(vocab)),
+    remaining: remainingReviews(plan),
+    gated: plan.newIds.length === 0 && ids.length < vocab.length,
+    total: vocab.length,
+    dayNumber: dayNumber(state, dayKey)
+  };
+}
+
+// "DAY 24" — days since you started, not a count of completions.
+function dayNumber(state, dayKey) {
+  const days = Object.keys(state.days).sort();
+  const first = state.firstDay || days[0];
+  if (!first) return 1;
+  return Math.max(1, daysBetween(first, dayKey) + 1);
+}
+
+// ── Kata Satu · web ──────────────────────────────────────────────────────────
+// The same scheduler and day planner as before; only the surface is new. State
+// lives in the artifact's own store when the viewer is signed in, with a local
+// mirror so a flaky connection never costs a session.
+
+// NXT uses a single accent that only ever carries meaning. These are the same
+// idea in other hues, each with the ink colour that stays legible on it.
+const ACCENTS = {
+  lime:   { base: "#C8F94E", ink: "#0C1004" },
+  cyan:   { base: "#5BE9E0", ink: "#021413" },
+  amber:  { base: "#FFB648", ink: "#1B1000" },
+  coral:  { base: "#FF8A6B", ink: "#1C0702" },
+  violet: { base: "#B99BFF", ink: "#120626" },
+  sky:    { base: "#7FB2FF", ink: "#040F22" }
+};
+
+function softOf(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
+}
+
+const LS_KEY = "kata-satu-state";
+const DB_PATH = "progress/state";
+
+// ── the Google Sheet (NXT's backend) ─────────────────────────────────────────
+// The installed build has no Claude account behind it, so it keeps its state in
+// the same spreadsheet the gym app uses, through that backend's generic blob
+// store. The endpoint and token are typed once and live on the device only —
+// publishing this app to a static host never exposes write access.
+const SHEET_KEY = "kata-satu-sheet";
+const SHEET_DOC = "kata-satu";
+let SHEET = null;          // {endpoint, token}
+let sheetState = "off";    // off | ok | error | saving
+
+function readSheetCreds() {
+  try { return JSON.parse(localStorage.getItem(SHEET_KEY) || "null"); }
+  catch (e) { return null; }
+}
+function writeSheetCreds(c) {
+  try {
+    if (c) localStorage.setItem(SHEET_KEY, JSON.stringify(c));
+    else localStorage.removeItem(SHEET_KEY);
+  } catch (e) {}
+  SHEET = c;
+}
+
+// text/plain keeps this a CORS "simple request" — Apps Script cannot answer the
+// preflight that application/json would trigger.
+async function sheetCall(action, payload) {
+  if (!SHEET) throw new Error("not paired");
+  const res = await fetch(SHEET.endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ token: SHEET.token, action: action, payload: payload || {} })
+  });
+  const body = await res.json();
+  // The backend's envelope: {success, data} or {success:false, error:{message}}.
+  if (!body || body.success !== true)
+    throw new Error((body && body.error && body.error.message) || "backend refused the call");
+  return body.data;
+}
+
+async function sheetPull() {
+  const out = await sheetCall("appStateGet", { key: SHEET_DOC });
+  if (!out || !out.value) return null;
+  try { return JSON.parse(out.value); } catch (e) { return null; }
+}
+
+async function sheetPush(state) {
+  return sheetCall("appStateSet", { key: SHEET_DOC, value: JSON.stringify(state) });
+}
+
+function defaultState() {
+  return {
+    version: 1,
+    firstDay: null,
+    onboarded: false,
+    settings: {
+      accentPreset: "lime",
+      newWordsPerDay: 1,
+      reviewsPerDay: 3,
+      direction: "adaptive"
+    },
+    streak: { current: 0, longest: 0, lastCompletedDay: null },
+    totals: { reviewsCompleted: 0 },
+    cards: {},
+    days: {}
+  };
+}
+
+// ── storage ──────────────────────────────────────────────────────────────────
+let DB = null;             // the artifact store, once it answers
+let STATE = defaultState();
+let saveTimer = null;
+
+function readLocal() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function writeLocal(s) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(s)); } catch (e) {}
+}
+
+function merge(into) {
+  const d = defaultState();
+  const s = Object.assign(d, into || {});
+  s.settings = Object.assign(d.settings, (into && into.settings) || {});
+  s.streak = Object.assign(d.streak, (into && into.streak) || {});
+  s.totals = Object.assign(d.totals, (into && into.totals) || {});
+  s.cards = (into && into.cards) || {};
+  s.days = (into && into.days) || {};
+  return s;
+}
+
+// Every mutation goes through save(): local immediately, store coalesced.
+function save() {
+  writeLocal(STATE);
+  if (!DB && !SHEET) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    if (DB) DB.doc(DB_PATH).set({ state: JSON.stringify(STATE) }).catch(() => {});
+    if (SHEET) {
+      sheetState = "saving";
+      sheetPush(STATE)
+        .then(() => { sheetState = "ok"; })
+        .catch(() => { sheetState = "error"; });   // the local copy still holds it
+    }
+  }, 700);
+}
+
+async function boot() {
+  STATE = merge(readLocal());
+  applyAccent();
+  start();                                  // paint from local at once
+
+  SHEET = readSheetCreds();
+  if (SHEET) {
+    try {
+      const remote = await sheetPull();
+      sheetState = "ok";
+      adopt(remote);
+    } catch (e) { sheetState = "error"; }
+    return;                                 // paired to the Sheet: that is the store
+  }
+
+  let db = null;
+  try { db = typeof claude !== "undefined" ? await claude.use("db") : null; }
+  catch (e) { db = null; }
+  if (!db) return;                          // local only
+  DB = db;
+  try {
+    const doc = await db.doc(DB_PATH).get();
+    adopt(doc && doc.state ? JSON.parse(doc.state) : null);
+  } catch (e) {}
+}
+
+// Take the remote copy when it is ahead of this device, otherwise seed the
+// backend from here. Either way nothing already answered is thrown away.
+function adopt(remote) {
+  if (remote && newer(remote, STATE)) {
+    STATE = merge(remote);
+    applyAccent();
+    start();
+  } else {
+    save();
+  }
+}
+
+// More days recorded wins; it is the only ordering that cannot lose answers.
+function newer(a, b) {
+  const ca = Object.keys(a.cards || {}).length, cb = Object.keys(b.cards || {}).length;
+  if (ca !== cb) return ca > cb;
+  return (a.totals && a.totals.reviewsCompleted || 0) > (b.totals && b.totals.reviewsCompleted || 0);
+}
+
+// ── accent ───────────────────────────────────────────────────────────────────
+function applyAccent() {
+  const a = ACCENTS[STATE.settings.accentPreset] || ACCENTS.lime;
+  const root = document.documentElement.style;
+  root.setProperty("--accent", a.base);
+  root.setProperty("--accent-ink", a.ink);
+  root.setProperty("--accent-soft", softOf(a.base, .13));
+  root.setProperty("--accent-line", softOf(a.base, .28));
+}
+
+// ── session ──────────────────────────────────────────────────────────────────
+const stage = document.getElementById("stage");
+const actions = document.getElementById("actions");
+const pipsEl = document.getElementById("pips");
+const dayEl = document.getElementById("day");
+
+// `steps` is always the work REMAINING, rebuilt from the plan after every
+// action. An index into it would be wrong the moment the list changes shape —
+// which it does as soon as a word is introduced or an answer is recorded.
+let plan = null, steps = [], dayKey = null, skipped = 0;
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Accent on the word being taught, inside its own example sentence. Indonesian
+// builds on roots, so "makan" also lights up inside "makanan" — which is the
+// point: it shows you the word you are learning doing its job.
+function hl(sentence, word) {
+  const safe = esc(sentence);
+  const stem = esc(String(word).split(/\s+/)[0]);
+  if (!stem) return safe;
+  const re = new RegExp("(" + stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "ig");
+  return safe.replace(re, '<b class="hl">$1</b>');
+}
+
+function start() {
+  dayKey = dayKeyOf(new Date());
+  if (!STATE.firstDay) STATE.firstDay = dayKey;
+  plan = planDay(STATE, VOCAB, dayKey);
+  persistPlan(STATE, plan);
+  save();
+  if (!STATE.onboarded && !Object.keys(STATE.cards).length) return onboarding();
+  rebuild();
+  render();
+}
+
+function rebuild() {
+  const s = buildSession(STATE, VOCAB, dayKey, plan);
+  steps = [];
+  if (s.newWords.length && !s.newSeen) for (const w of s.newWords) steps.push({ k: "new", w: w });
+  for (const q of s.questions) steps.push({ k: "q", q: q });
+}
+
+function pips() {
+  const total = plan.newIds.length + plan.reviewIds.length;
+  if (!total) { pipsEl.innerHTML = ""; return; }
+  const left = steps.length;
+  let h = "";
+  for (let i = 0; i < total; i++) {
+    const state = i < total - left ? "done" : (i === total - left ? "now" : "");
+    h += '<i class="pip ' + state + '"></i>';
+  }
+  pipsEl.innerHTML = h;
+}
+
+function render() {
+  const st = stats(STATE, VOCAB, dayKey);
+  dayEl.textContent = "Day " + st.dayNumber;
+  pips();
+  if (!steps.length) return done();
+  const s = steps[0];
+  return s.k === "new" ? newWord(s.w) : question(s.q);
+}
+
+function act(html) { actions.innerHTML = html; }
+
+// ── the new word ─────────────────────────────────────────────────────────────
+function newWord(w) {
+  stage.innerHTML =
+    '<div class="screen stack-l">' +
+      '<div>' +
+        '<div class="label">New today</div>' +
+        '<div class="hero" style="margin-top:12px">' + esc(w.word) + '</div>' +
+        '<div class="gloss">' + esc(w.en) + '</div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="ex">' + hl(w.ex, w.word) + '</div>' +
+        '<div class="exEn">' + esc(w.exEn) + '</div>' +
+      '</div>' +
+      (w.note ? '<div class="card"><div class="note">' + esc(w.note) + '</div></div>' : '') +
+      (skipped ? '<div class="meta">' + skipped + ' word' + (skipped > 1 ? 's' : '') +
+                 ' parked as known</div>' : '') +
+    '</div>';
+
+  act('<button class="btn btn-primary" id="got">Got it</button>' +
+      '<button class="btn btn-ghost btn-sm" id="know">I know this already</button>');
+
+  document.getElementById("got").onclick = () => {
+    introduceNew(STATE, plan, dayKey);
+    save(); rebuild(); render();
+  };
+  document.getElementById("know").onclick = () => {
+    skipAsKnown(STATE, plan, VOCAB, dayKey, w.id);
+    save(); skipped++;
+    rebuild(); render();
+  };
+}
+
+// ── a review ─────────────────────────────────────────────────────────────────
+function question(q) {
+  const ask = q.dir === "id_en"
+    ? 'What does <em>' + esc(q.word) + '</em> mean?'
+    : 'How do you say <em>' + esc(q.en) + '</em>?';
+
+  if (q.fmt === "mc") {
+    stage.innerHTML =
+      '<div class="screen">' +
+        '<div class="label">Review</div>' +
+        '<div class="ask" style="margin-top:12px">' + ask + '</div>' +
+        '<div class="opts" id="opts">' +
+        q.options.map((o, k) =>
+          '<button class="opt" data-k="' + k + '"><span class="mark">\u25CF</span>' +
+          '<span>' + esc(o.label) + '</span></button>').join("") +
+        '</div>' +
+      '</div>';
+    act("");
+    const opts = [...document.querySelectorAll(".opt")];
+    let answered = false;             // a second tap must never grade twice
+    opts.forEach(b => b.onclick = () => {
+      if (answered) return;
+      answered = true;
+      const k = +b.dataset.k;
+      const ok = k === q.answerIdx;
+      opts.forEach(o => { o.onclick = null; o.classList.add("dim"); });
+      b.classList.remove("dim");
+      b.classList.add(ok ? "right" : "shake");
+      if (!ok) {
+        b.classList.add("wrong");
+        const right = opts[q.answerIdx];
+        right.classList.remove("dim");
+        right.classList.add("right");
+      }
+      judge(q, ok);
+    });
+    return;
+  }
+
+  // free recall: look, then grade yourself — the format that actually tests
+  stage.innerHTML =
+    '<div class="screen">' +
+      '<div class="label">Recall</div>' +
+      '<div class="ask" style="margin-top:12px">' + ask + '</div>' +
+    '</div>';
+  act('<button class="btn btn-primary" id="show">Show the answer</button>');
+  document.getElementById("show").onclick = () => {
+    stage.innerHTML =
+      '<div class="screen stack-l">' +
+        '<div>' +
+          '<div class="label">Recall</div>' +
+          '<div class="hero" style="margin-top:12px">' +
+            esc(q.dir === "id_en" ? q.en : q.word) + '</div>' +
+        '</div>' +
+        '<div class="card">' +
+          '<div class="ex">' + hl(q.ex, q.word) + '</div>' +
+          '<div class="exEn">' + esc(q.exEn) + '</div>' +
+        '</div>' +
+      '</div>';
+    act('<button class="btn btn-primary" id="yes">I knew it</button>' +
+        '<button class="btn btn-ghost btn-sm" id="no">Missed it</button>');
+    document.getElementById("yes").onclick = () => judge(q, true);
+    document.getElementById("no").onclick = () => judge(q, false);
+  };
+}
+
+function judge(q, ok) {
+  recordAnswer(STATE, plan, dayKey, q.id, ok, q.dir, q.fmt, q.distractorIds);
+  save();
+  const extra = (!ok && q.note) ? '<div class="note">' + esc(q.note) + '</div>' : '';
+  const body =
+    '<div class="verdict ' + (ok ? "ok" : "no") + '">' +
+      (ok ? "Correct" : "Not quite — " + esc(q.word) + " is " + esc(q.en)) + '</div>' + extra;
+  stage.insertAdjacentHTML("beforeend", body);
+  act('<button class="btn btn-primary" id="next">Continue</button>');
+  const next = document.getElementById("next");
+  next.onclick = () => { rebuild(); render(); };
+  setTimeout(() => { try { next.focus({ preventScroll: true }); } catch (e) {} }, 60);
+}
+
+// ── finished ─────────────────────────────────────────────────────────────────
+function done() {
+  settleDay(STATE, plan, dayKey);
+  save();
+  const st = stats(STATE, VOCAB, dayKey);
+  const pct = st.total ? Math.round((st.introduced / st.total) * 100) : 0;
+
+  stage.innerHTML =
+    '<div class="screen">' +
+      '<div class="label">Today complete</div>' +
+      '<div class="streak"><b class="num hl">' + (st.streakOnComplete || st.streak) +
+        '</b><span>day streak</span></div>' +
+      '<div class="tiles">' +
+        tile(st.learning, "", "Learning") +
+        tile(st.mastered, "", "Mastered") +
+        tile(st.introduced, " of " + st.total, "Words seen") +
+        tile(st.reviewsCompleted, "", "Reviews done") +
+      '</div>' +
+      (st.known ? '<div class="meta" style="margin-top:14px">' + st.known +
+                  ' parked as already known \u00b7 ' + pct + '% of the course touched</div>' : '') +
+    '</div>';
+
+  const more = canAddExtra(STATE, VOCAB, plan);
+  act((more ? '<button class="btn btn-primary" id="more">Teach me one more word</button>' : "") +
+      '<button class="btn btn-ghost' + (more ? ' btn-sm' : '') + '" id="close">Done for today</button>');
+
+  if (more) document.getElementById("more").onclick = () => {
+    addExtraWord(STATE, plan, VOCAB, dayKey);
+    save();
+    rebuild(); render();
+  };
+  document.getElementById("close").onclick = () => {
+    stage.innerHTML =
+      '<div class="screen">' +
+        '<div class="label">See you tomorrow</div>' +
+        '<div class="ask" style="margin-top:12px"><em>One word</em>, ' +
+          STATE.settings.reviewsPerDay + ' reviews, about thirty seconds.</div>' +
+        '<div class="subtitle" style="margin-top:14px">Keeping the streak is the whole trick.</div>' +
+      '</div>';
+    act('<button class="btn btn-ghost" id="again">Back</button>');
+    document.getElementById("again").onclick = () => { rebuild(); render(); };
+  };
+}
+
+function tile(n, suffix, label) {
+  return '<div class="tile"><div class="tile-num num">' + n +
+         (suffix ? '<small>' + suffix + '</small>' : '') + '</div>' +
+         '<div class="tile-label">' + label + '</div></div>';
+}
+
+// ── first run ────────────────────────────────────────────────────────────────
+// One pass, once: tick what you can already use so the course starts where you
+// actually are instead of teaching "permisi" on day forty.
+function onboarding() {
+  const list = VOCAB.slice(0, 150);
+  const picked = {};
+  pipsEl.innerHTML = "";
+
+  const draw = () => {
+    const n = Object.keys(picked).length;
+    stage.innerHTML =
+      '<div class="screen">' +
+      '<div class="label">Before you start</div>' +
+      '<div class="ask" style="margin-top:12px">What do you <em>already know</em>?</div>' +
+      '<div class="subtitle" style="margin-top:12px">Tap every word you can already use. ' +
+      'Those get parked \u2014 never taught, never tested.</div>' +
+      '<div class="scroll"><div class="pick">' +
+      list.map(v => '<button class="chip" data-id="' + v.id + '" aria-pressed="' +
+        (picked[v.id] ? "true" : "false") + '">' + esc(v.word) +
+        '<small>' + esc(v.en) + '</small></button>').join("") +
+      '</div></div></div>';
+    act('<button class="btn btn-primary" id="go">' +
+        (n ? "Start — " + n + " parked" : "Start learning") + '</button>');
+
+    stage.querySelectorAll(".chip").forEach(c => c.onclick = () => {
+      const id = c.dataset.id;
+      if (picked[id]) delete picked[id]; else picked[id] = true;
+      c.setAttribute("aria-pressed", picked[id] ? "true" : "false");
+      const k = Object.keys(picked).length;
+      document.getElementById("go").textContent =
+        k ? "Start — " + k + " parked" : "Start learning";
+    });
+    document.getElementById("go").onclick = () => {
+      markKnownBulk(STATE, plan, VOCAB, dayKey, Object.keys(picked));
+      STATE.onboarded = true;
+      save();
+      rebuild(); render();
+    };
+  };
+  draw();
+}
+
+// ── settings ─────────────────────────────────────────────────────────────────
+document.getElementById("gear").onclick = settings;
+
+function settings() {
+  const s = STATE.settings;
+  const st = stats(STATE, VOCAB, dayKey);
+  pipsEl.innerHTML = "";
+
+  stage.innerHTML =
+    '<div class="screen">' +
+      '<div class="title">Settings</div>' +
+
+      '<div class="label label-quiet" style="margin-top:22px">Accent</div>' +
+      '<div class="set"><label>Colour</label><div class="swatches" id="sw">' +
+        Object.keys(ACCENTS).map(k =>
+          '<button class="sw" data-k="' + k + '" aria-pressed="' +
+          (s.accentPreset === k ? "true" : "false") + '" aria-label="' + k +
+          '" style="background:' + ACCENTS[k].base + '"></button>').join("") +
+      '</div></div>' +
+
+      '<div class="label label-quiet" style="margin-top:22px">Daily load</div>' +
+      seg("New words", "newWordsPerDay", [[1, "1"], [2, "2"], [3, "3"]]) +
+      seg("Reviews", "reviewsPerDay", [[1, "1"], [2, "2"], [3, "3"], [5, "5"]]) +
+      seg("Asking", "direction", [["adaptive", "Adaptive"], ["both", "Both"],
+                                  ["id_en", "ID\u2192EN"], ["en_id", "EN\u2192ID"]]) +
+
+      '<div class="label label-quiet" style="margin-top:22px">Storage</div>' +
+      storageBlock() +
+
+      '<div class="meta" style="margin-top:22px">Day ' + st.dayNumber + ' \u00b7 ' +
+        st.introduced + ' words in progress \u00b7 ' + st.known + ' parked.<br>' +
+        'A changed daily load takes effect tomorrow.</div>' +
+      '<div style="margin-top:18px"><button class="btn btn-danger btn-sm" id="reset">Reset all progress</button></div>' +
+    '</div>';
+
+  act('<button class="btn btn-primary" id="back">Done</button>');
+  document.getElementById("back").onclick = () => { rebuild(); render(); };
+
+  stage.querySelectorAll("#sw .sw").forEach(b => b.onclick = () => {
+    STATE.settings.accentPreset = b.dataset.k;
+    save(); applyAccent(); settings();
+  });
+  stage.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
+    const key = b.dataset.key;
+    let v = b.dataset.v;
+    if (/^\d+$/.test(v)) v = +v;
+    STATE.settings[key] = v;
+    save();
+    // Today's plan is left alone on purpose: rebuilding it would throw away the
+    // answers already recorded against it. A changed load starts tomorrow.
+    settings();
+  });
+
+  const pairBtn = document.getElementById("pair");
+  if (pairBtn) pairBtn.onclick = async () => {
+    const endpoint = document.getElementById("ep").value.trim();
+    const token = document.getElementById("tk").value.trim();
+    const msg = document.getElementById("pairmsg");
+    if (!endpoint || !token) { msg.textContent = "Both the URL and the token are needed."; return; }
+    pairBtn.disabled = true;
+    msg.textContent = "Checking\u2026";
+    const keep = SHEET;
+    SHEET = { endpoint: endpoint, token: token };
+    try {
+      await sheetCall("ping", {});
+      const remote = await sheetPull();
+      writeSheetCreds(SHEET);
+      sheetState = "ok";
+      if (remote && newer(remote, STATE)) { STATE = merge(remote); applyAccent(); }
+      else await sheetPush(STATE);
+      settings();
+    } catch (e) {
+      SHEET = keep;
+      pairBtn.disabled = false;
+      msg.textContent = "Could not reach that backend \u2014 check the URL and token.";
+    }
+  };
+
+  const unpair = document.getElementById("unpair");
+  if (unpair) unpair.onclick = () => {
+    writeSheetCreds(null);
+    sheetState = "off";
+    settings();
+  };
+
+  document.getElementById("reset").onclick = function () {
+    if (this.dataset.armed !== "1") {
+      this.dataset.armed = "1";
+      this.textContent = "Tap again to erase everything";
+      return;
+    }
+    const keep = STATE.settings;
+    STATE = defaultState();
+    STATE.settings = keep;
+    save();
+    skipped = 0;
+    start();
+  };
+}
+
+// Where this copy saves, and how to point it at the gym app's spreadsheet.
+function storageBlock() {
+  // Inside claude.ai the account store is the backend; the Sheet pairing is for
+  // the installed build, which has no account behind it.
+  if (!SHEET && typeof claude !== "undefined")
+    return '<div class="meta">Saved to your Claude account. It follows you to any ' +
+           'device where you open this page signed in.</div>';
+  if (DB) return '<div class="meta">Saved to your Claude account. It follows you to ' +
+                 'any device where you open this page signed in.</div>';
+  if (SHEET) {
+    const word = sheetState === "error" ? "not reachable right now"
+               : sheetState === "saving" ? "saving\u2026" : "in sync";
+    return '<div class="set"><label>Google Sheet</label>' +
+           '<span class="meta">' + word + '</span></div>' +
+           '<div class="meta" style="margin-top:10px">Progress is written to the same ' +
+           'spreadsheet as NXT, under its own tab. This device also keeps a copy, so the ' +
+           'app works offline.</div>' +
+           '<div style="margin-top:12px"><button class="btn btn-ghost btn-sm" id="unpair">Disconnect</button></div>';
+  }
+  return '<div class="meta">Saved on this device only. Connect it to the spreadsheet ' +
+         'NXT already uses and your progress survives a new phone.</div>' +
+         '<div class="pair">' +
+           '<input class="input" id="ep" type="url" inputmode="url" autocomplete="off" ' +
+             'placeholder="Apps Script web app URL">' +
+           '<input class="input" id="tk" type="text" autocomplete="off" placeholder="App token">' +
+           '<button class="btn btn-primary btn-sm" id="pair">Connect</button>' +
+           '<div class="meta" id="pairmsg"></div>' +
+         '</div>';
+}
+
+function seg(label, key, pairs) {
+  const cur = STATE.settings[key];
+  return '<div class="set"><label>' + label + '</label><div class="seg">' +
+    pairs.map(p => '<button data-key="' + key + '" data-v="' + p[0] + '" aria-pressed="' +
+      (String(cur) === String(p[0]) ? "true" : "false") + '">' + p[1] + '</button>').join("") +
+    '</div></div>';
+}
+
+// iOS reads the Home Screen icon and app name from <head> at the moment you tap
+// "Add to Home Screen", and the page body is not where it looks — so the tags
+// are copied up on load.
+(function homeScreenIcon() {
+  try {
+    const want = [
+      ["link", { rel: "apple-touch-icon", href: "icon/apple-touch-icon.png" }],
+      ["link", { rel: "icon", href: "icon/icon-192.png" }],
+      ["meta", { name: "apple-mobile-web-app-title", content: "Kata Satu" }],
+      ["meta", { name: "apple-mobile-web-app-capable", content: "yes" }],
+      ["meta", { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" }],
+      ["meta", { name: "theme-color", content: "#09090A" }]
+    ];
+    for (const [tag, attrs] of want) {
+      const el = document.createElement(tag);
+      for (const k in attrs) el.setAttribute(k, attrs[k]);
+      document.head.appendChild(el);
+    }
+  } catch (e) {}
+})();
+
+boot();
+
+</script>
+
+<script>
+if ("serviceWorker" in navigator)
+  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+</script>
+</body>
+</html>

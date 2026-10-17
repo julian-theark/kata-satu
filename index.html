@@ -1343,8 +1343,15 @@ const DB_PATH = "progress/state";
 // store. The endpoint and token are typed once and live on the device only —
 // publishing this app to a static host never exposes write access.
 const SHEET_KEY = "kata-satu-sheet";
-const SHEET_DOC = "kata-satu";
-let SHEET = null;          // {endpoint, token}
+let SHEET = null;          // {endpoint, token, profile}
+
+// Each person gets their own row in the store, so one spreadsheet can carry
+// several learners without their progress ever meeting.
+function sheetDoc() {
+  const who = (SHEET && SHEET.profile ? SHEET.profile : "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return who ? "kata-satu:" + who : "kata-satu";
+}
 let sheetState = "off";    // off | ok | error | saving
 
 function readSheetCreds() {
@@ -1376,13 +1383,13 @@ async function sheetCall(action, payload) {
 }
 
 async function sheetPull() {
-  const out = await sheetCall("appStateGet", { key: SHEET_DOC });
+  const out = await sheetCall("appStateGet", { key: sheetDoc() });
   if (!out || !out.value) return null;
   try { return JSON.parse(out.value); } catch (e) { return null; }
 }
 
 async function sheetPush(state) {
-  return sheetCall("appStateSet", { key: SHEET_DOC, value: JSON.stringify(state) });
+  return sheetCall("appStateSet", { key: sheetDoc(), value: JSON.stringify(state) });
 }
 
 function defaultState() {
@@ -1828,12 +1835,13 @@ function settings() {
   if (pairBtn) pairBtn.onclick = async () => {
     const endpoint = document.getElementById("ep").value.trim();
     const token = document.getElementById("tk").value.trim();
+    const profile = document.getElementById("who").value.trim();
     const msg = document.getElementById("pairmsg");
     if (!endpoint || !token) { msg.textContent = "Both the URL and the token are needed."; return; }
     pairBtn.disabled = true;
     msg.textContent = "Checking\u2026";
     const keep = SHEET;
-    SHEET = { endpoint: endpoint, token: token };
+    SHEET = { endpoint: endpoint, token: token, profile: profile };
     try {
       await sheetCall("ping", {});
       const remote = await sheetPull();
@@ -1885,6 +1893,8 @@ function storageBlock() {
                : sheetState === "saving" ? "saving\u2026" : "in sync";
     return '<div class="set"><label>Google Sheet</label>' +
            '<span class="meta">' + word + '</span></div>' +
+           (SHEET.profile ? '<div class="set"><label>Profile</label>' +
+             '<span class="meta">' + esc(SHEET.profile) + '</span></div>' : '') +
            '<div class="meta" style="margin-top:10px">Progress is written to the same ' +
            'spreadsheet as NXT, under its own tab. This device also keeps a copy, so the ' +
            'app works offline.</div>' +
@@ -1896,6 +1906,8 @@ function storageBlock() {
            '<input class="input" id="ep" type="url" inputmode="url" autocomplete="off" ' +
              'placeholder="Apps Script web app URL">' +
            '<input class="input" id="tk" type="text" autocomplete="off" placeholder="App token">' +
+           '<input class="input" id="who" type="text" autocomplete="off" ' +
+             'placeholder="Your name (keeps progress separate)">' +
            '<button class="btn btn-primary btn-sm" id="pair">Connect</button>' +
            '<div class="meta" id="pairmsg"></div>' +
          '</div>';

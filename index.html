@@ -10,7 +10,9 @@
 <link rel="icon" href="icon/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Kata Satu">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- "black", not "black-translucent": translucent lets the page run UNDER the
+     status bar, where the clock and battery sit on top of the top bar. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#09090A">
 <style>
 /* ==========================================================================
@@ -62,6 +64,7 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
   max-width:560px; margin:0 auto; width:100%;
   padding-bottom:calc(16px + env(safe-area-inset-bottom, 0px));
 }
+/* The sticky bar sits at the safe-area edge, never under the status bar. */
 .pad{
   padding-left:max(var(--gutter), env(safe-area-inset-left, 0px));
   padding-right:max(var(--gutter), env(safe-area-inset-right, 0px));
@@ -173,6 +176,22 @@ main{flex:1 1 auto; padding-block:26px 20px; min-width:0}
 .btn-sm{min-height:46px; font-size:14.5px}
 /* The action bar is the one place a button owns the full width. */
 .bottombar .btn{display:flex; width:100%}
+
+/* the word list */
+.wlist{display:flex; flex-direction:column; margin-top:8px}
+.wrow{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 0}
+.wrow+.wrow{border-top:1px solid var(--line)}
+.wword{font-size:16px; font-weight:650; letter-spacing:-.01em; min-width:0}
+.wword small{display:block; font-size:13px; font-weight:400; color:var(--text-3); letter-spacing:0}
+.wmeta{flex:0 0 auto}
+.pill{
+  display:inline-flex; align-items:center; height:26px; padding:0 11px;
+  border-radius:var(--r-pill); font-size:12px; font-weight:650; letter-spacing:-.005em;
+  background:var(--surface-2); color:var(--text-3); white-space:nowrap;
+}
+.pill-accent{background:var(--accent-soft); color:var(--accent)}
+.pill-neg{background:var(--neg-soft); color:var(--neg)}
+.day{cursor:pointer}
 
 /* settings */
 .set{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:14px 0; flex-wrap:wrap}
@@ -1710,7 +1729,9 @@ function done() {
 
   const more = canAddExtra(STATE, VOCAB, plan);
   act((more ? '<button class="btn btn-primary" id="more">Teach me one more word</button>' : "") +
-      '<button class="btn btn-ghost' + (more ? ' btn-sm' : '') + '" id="close">Done for today</button>');
+      '<button class="btn btn-ghost btn-sm" id="words">See the words I\u2019m learning</button>' +
+      '<button class="btn btn-ghost btn-sm" id="close">Done for today</button>');
+  document.getElementById("words").onclick = wordsScreen;
 
   if (more) document.getElementById("more").onclick = () => {
     addExtraWord(STATE, plan, VOCAB, dayKey);
@@ -1778,8 +1799,71 @@ function onboarding() {
   draw();
 }
 
+// ── what you are learning ────────────────────────────────────────────────────
+// A word you cannot see is a word you cannot rehearse on the way to the shop.
+// This is the whole day plus everything currently in flight, newest first.
+function wordsScreen() {
+  const vm = byId(VOCAB);
+  const day = STATE.days[dayKey] || { newIds: [], reviewIds: [], answered: {} };
+  const answered = day.answered || {};
+
+  const todayRows = []
+    .concat((day.newIds || []).map(id => ({ id: id, tag: "new" })))
+    .concat((day.reviewIds || []).map(id => ({
+      id: id, tag: id in answered ? (answered[id] ? "right" : "wrong") : "due"
+    })));
+
+  // In flight: introduced, not parked, not finished. Soonest due first, so the
+  // list reads as "what is coming back at me".
+  const learning = Object.keys(STATE.cards)
+    .filter(id => { const c = STATE.cards[id]; return c && !c.known && !isMastered(c); })
+    .sort((a, b) => (STATE.cards[a].next || "").localeCompare(STATE.cards[b].next || ""));
+
+  const line = (id, right) => {
+    const v = vm[id];
+    if (!v) return "";
+    return '<div class="wrow"><div class="wword">' + esc(v.word) +
+           '<small>' + esc(v.en) + '</small></div>' +
+           '<div class="wmeta">' + right + '</div></div>';
+  };
+
+  const badge = tag =>
+    tag === "new"   ? '<span class="pill pill-accent">new today</span>' :
+    tag === "right" ? '<span class="pill pill-accent">\u2713</span>' :
+    tag === "wrong" ? '<span class="pill pill-neg">missed</span>' :
+                      '<span class="pill">due</span>';
+
+  const when = id => {
+    const c = STATE.cards[id];
+    if (!c) return "";
+    const d = daysBetween(dayKey, c.next);
+    const label = d <= 0 ? "due now" : d === 1 ? "tomorrow" : "in " + d + " days";
+    return '<span class="pill">' + label + '</span>';
+  };
+
+  stage.innerHTML =
+    '<div class="screen">' +
+      '<div class="title">Your words</div>' +
+
+      '<div class="label label-quiet" style="margin-top:22px">Today</div>' +
+      (todayRows.length
+        ? '<div class="wlist">' + todayRows.map(r => line(r.id, badge(r.tag))).join("") + '</div>'
+        : '<div class="meta" style="margin-top:8px">Nothing scheduled today.</div>') +
+
+      '<div class="label label-quiet" style="margin-top:26px">Still learning \u00b7 ' +
+        learning.length + '</div>' +
+      (learning.length
+        ? '<div class="wlist">' + learning.map(id => line(id, when(id))).join("") + '</div>'
+        : '<div class="meta" style="margin-top:8px">Nothing in flight yet.</div>') +
+    '</div>';
+
+  act('<button class="btn btn-primary" id="back">Done</button>');
+  document.getElementById("back").onclick = () => { rebuild(); render(); };
+}
+
 // ── settings ─────────────────────────────────────────────────────────────────
 document.getElementById("gear").onclick = settings;
+dayEl.onclick = wordsScreen;
 
 function settings() {
   const s = STATE.settings;
@@ -1931,7 +2015,7 @@ function seg(label, key, pairs) {
       ["link", { rel: "icon", href: "icon/icon-192.png" }],
       ["meta", { name: "apple-mobile-web-app-title", content: "Kata Satu" }],
       ["meta", { name: "apple-mobile-web-app-capable", content: "yes" }],
-      ["meta", { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" }],
+      ["meta", { name: "apple-mobile-web-app-status-bar-style", content: "black" }],
       ["meta", { name: "theme-color", content: "#09090A" }]
     ];
     for (const [tag, attrs] of want) {

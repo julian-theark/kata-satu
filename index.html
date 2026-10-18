@@ -181,6 +181,27 @@ main{flex:1 1 auto; padding-block:26px 20px; min-width:0}
 /* The action bar is the one place a button owns the full width. */
 .bottombar .btn{display:flex; width:100%}
 
+/* home */
+.hello{font-size:30px; font-weight:780; letter-spacing:-.035em; line-height:1.05; margin-top:8px}
+.ringwrap{position:relative; width:168px; height:168px; margin:22px auto 4px}
+.ring{width:100%; height:100%; display:block}
+.ringmid{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px}
+.ringmid b{font-size:46px; font-weight:780; letter-spacing:-.04em; line-height:1}
+.ringmid span{font-size:12px; color:var(--text-3)}
+
+.week{display:flex; gap:6px; justify-content:center; margin-top:10px}
+.wk{width:26px; height:6px; border-radius:var(--r-pill); background:var(--surface-2)}
+.wk.on{background:var(--accent)}
+.wk.today{box-shadow:0 0 0 2px var(--bg), 0 0 0 3px var(--line-strong)}
+
+.lvl{margin-top:24px}
+.lvl-top{display:flex; justify-content:space-between; align-items:baseline; font-size:13.5px; font-weight:650; color:var(--text-2); margin-bottom:8px}
+.lvl-top .num{color:var(--text-3); font-weight:500}
+.track{height:8px; border-radius:var(--r-pill); background:var(--surface-2); overflow:hidden}
+.track i{display:block; height:100%; border-radius:var(--r-pill); background:var(--accent); transition:width 700ms var(--ease)}
+
+.badges{display:flex; flex-wrap:wrap; gap:7px; margin-top:22px}
+
 /* the word list */
 .wlist{display:flex; flex-direction:column; margin-top:8px}
 .wrow{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 0}
@@ -1541,6 +1562,7 @@ const dayEl = document.getElementById("day");
 // action. An index into it would be wrong the moment the list changes shape —
 // which it does as soon as a word is introduced or an answer is recorded.
 let plan = null, steps = [], dayKey = null, skipped = 0;
+let atHome = true;          // the app opens on the home screen, not mid-question
 
 function esc(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -1590,6 +1612,7 @@ function pips() {
 function render() {
   const st = stats(STATE, VOCAB, dayKey);
   dayEl.textContent = "Day " + st.dayNumber;
+  if (atHome) { pipsEl.innerHTML = ""; return home(); }
   pips();
   if (!steps.length) return done();
   const s = steps[0];
@@ -1751,8 +1774,8 @@ function done() {
           STATE.settings.reviewsPerDay + ' reviews, about thirty seconds.</div>' +
         '<div class="subtitle" style="margin-top:14px">Keeping the streak is the whole trick.</div>' +
       '</div>';
-    act('<button class="btn btn-ghost" id="again">Back</button>');
-    document.getElementById("again").onclick = () => { rebuild(); render(); };
+    act('<button class="btn btn-ghost" id="again">Back to home</button>');
+    document.getElementById("again").onclick = () => { atHome = true; rebuild(); render(); };
   };
 }
 
@@ -1798,10 +1821,174 @@ function onboarding() {
       markKnownBulk(STATE, plan, VOCAB, dayKey, Object.keys(picked));
       STATE.onboarded = true;
       save();
-      rebuild(); render();
+      atHome = true; rebuild(); render();
     };
   };
   draw();
+}
+
+// ── score ────────────────────────────────────────────────────────────────────
+// Borrowed wholesale from NXT's xp.js, including its rule: points are only ever
+// added. A day where you got everything wrong still earns the points for
+// turning up, because a score that punishes bad days teaches you to skip them.
+const XP = { day: 50, review: 2, word: 10, mastered: 30 };
+
+function totalXp() {
+  const days = Object.keys(STATE.days).filter(k => STATE.days[k].complete).length;
+  let learning = 0, mastered = 0;
+  for (const id in STATE.cards) {
+    const c = STATE.cards[id];
+    if (c.known) continue;
+    if (isMastered(c)) mastered++; else learning++;
+  }
+  return days * XP.day +
+         (STATE.totals.reviewsCompleted || 0) * XP.review +
+         (learning + mastered) * XP.word +
+         mastered * XP.mastered;
+}
+
+// Levels widen as they go, so the early ones arrive quickly and the later ones
+// stay worth something. Same curve as the gym app.
+function levelFor(points) {
+  let level = 1, span = 200, floor = 0;
+  while (points >= floor + span) { floor += span; level += 1; span = Math.round(span * 1.25); }
+  return { level: level, into: points - floor, span: span, fraction: span ? (points - floor) / span : 0 };
+}
+
+// ── home ─────────────────────────────────────────────────────────────────────
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 11) return ["Selamat pagi", "good morning"];
+  if (h < 15) return ["Selamat siang", "good afternoon"];
+  if (h < 19) return ["Selamat sore", "good evening"];
+  return ["Selamat malam", "good night"];
+}
+
+// The last seven days, oldest first: a filled pip is a day you finished.
+function weekStrip() {
+  let out = "";
+  for (let i = 6; i >= 0; i--) {
+    const key = addDays(dayKey, -i);
+    const d = STATE.days[key];
+    const done = d && d.complete;
+    const today = i === 0;
+    out += '<i class="wk' + (done ? " on" : "") + (today ? " today" : "") + '"></i>';
+  }
+  return '<div class="week">' + out + '</div>';
+}
+
+function home() {
+  const st = stats(STATE, VOCAB, dayKey);
+  const plan0 = plan;
+  const total = plan0.newIds.length + plan0.reviewIds.length;
+  const left = steps.length;
+  const doneNow = Math.max(0, total - left);
+  const frac = total ? doneNow / total : 1;
+  const lv = levelFor(totalXp());
+  const [hi, hiEn] = greeting();
+
+  const C = 2 * Math.PI * 54;
+  stage.innerHTML =
+    '<div class="screen">' +
+      '<div class="label">' + esc(hi) + '</div>' +
+      '<div class="hello">' + esc(hiEn) + '</div>' +
+
+      '<div class="ringwrap">' +
+        '<svg class="ring" viewBox="0 0 128 128" aria-hidden="true">' +
+          '<circle cx="64" cy="64" r="54" fill="none" stroke="var(--surface-2)" stroke-width="10"></circle>' +
+          '<circle class="ring-fg" cx="64" cy="64" r="54" fill="none" stroke="var(--accent)" ' +
+            'stroke-width="10" stroke-linecap="round" transform="rotate(-90 64 64)" ' +
+            'stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + C.toFixed(1) + '" ' +
+            'data-to="' + (C * (1 - frac)).toFixed(1) + '"></circle>' +
+        '</svg>' +
+        '<div class="ringmid">' +
+          '<b class="num" data-count="' + st.streak + '">0</b>' +
+          '<span>day streak</span>' +
+        '</div>' +
+      '</div>' +
+
+      weekStrip() +
+
+      '<div class="lvl">' +
+        '<div class="lvl-top"><span>Level ' + lv.level + '</span>' +
+          '<span class="num">' + lv.into + ' / ' + lv.span + '</span></div>' +
+        '<div class="track"><i style="width:' + Math.round(lv.fraction * 100) + '%"></i></div>' +
+      '</div>' +
+
+      '<div class="tiles">' +
+        tile(st.learning, "", "Learning") +
+        tile(st.mastered, "", "Mastered") +
+        tile(st.introduced, " of " + st.total, "Words seen") +
+        tile(st.reviewsCompleted, "", "Reviews") +
+      '</div>' +
+
+      badges(st) +
+    '</div>';
+
+  if (left) {
+    act('<button class="btn btn-primary" id="go">' +
+          (doneNow ? "Continue \u2014 " + left + " to go"
+                   : "Start today \u00b7 " + total + (total === 1 ? " item" : " items")) +
+        '</button>' +
+        '<button class="btn btn-ghost btn-sm" id="words">The words I\u2019m learning</button>');
+  } else {
+    const more = canAddExtra(STATE, VOCAB, plan);
+    act((more ? '<button class="btn btn-primary" id="more">Teach me one more word</button>' : "") +
+        '<button class="btn btn-ghost btn-sm" id="words">The words I\u2019m learning</button>');
+  }
+
+  const go = document.getElementById("go");
+  if (go) go.onclick = () => { atHome = false; render(); };
+  const more = document.getElementById("more");
+  if (more) more.onclick = () => {
+    addExtraWord(STATE, plan, VOCAB, dayKey);
+    save(); atHome = false; rebuild(); render();
+  };
+  document.getElementById("words").onclick = wordsScreen;
+
+  animateHome();
+}
+
+// Everything is already in its finished position in the markup; this only adds
+// the arrival. A reduced-motion setting skips straight to the end state.
+function animateHome() {
+  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const ring = stage.querySelector(".ring-fg");
+  const num = stage.querySelector(".ringmid b");
+  const target = num ? +num.dataset.count : 0;
+
+  if (ring) {
+    if (reduce) ring.style.strokeDashoffset = ring.dataset.to;
+    else requestAnimationFrame(() => {
+      ring.style.transition = "stroke-dashoffset 900ms var(--ease)";
+      ring.style.strokeDashoffset = ring.dataset.to;
+    });
+  }
+  if (!num) return;
+  if (reduce || target === 0) { num.textContent = String(target); return; }
+
+  const t0 = performance.now(), ms = 650;
+  const step = now => {
+    const p = Math.min(1, (now - t0) / ms);
+    num.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))));
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+// Milestones, not trophies: each one names a real threshold in the method.
+function badges(st) {
+  const list = [
+    ["First word", st.introduced >= 1],
+    ["7-day streak", st.longest >= 7],
+    ["10 mastered", st.mastered >= 10],
+    ["100 reviews", st.reviewsCompleted >= 100],
+    ["30-day streak", st.longest >= 30],
+    ["100 words", st.introduced >= 100]
+  ];
+  return '<div class="badges">' + list.map(b =>
+    '<span class="pill' + (b[1] ? " pill-accent" : "") + '">' +
+    (b[1] ? "\u2713 " : "") + b[0] + '</span>').join("") + '</div>';
 }
 
 // ── what you are learning ────────────────────────────────────────────────────
@@ -1863,7 +2050,7 @@ function wordsScreen() {
     '</div>';
 
   act('<button class="btn btn-primary" id="back">Done</button>');
-  document.getElementById("back").onclick = () => { rebuild(); render(); };
+  document.getElementById("back").onclick = () => { atHome = true; rebuild(); render(); };
 }
 
 // ── settings ─────────────────────────────────────────────────────────────────
@@ -1903,7 +2090,7 @@ function settings() {
     '</div>';
 
   act('<button class="btn btn-primary" id="back">Done</button>');
-  document.getElementById("back").onclick = () => { rebuild(); render(); };
+  document.getElementById("back").onclick = () => { atHome = true; rebuild(); render(); };
 
   stage.querySelectorAll("#sw .sw").forEach(b => b.onclick = () => {
     STATE.settings.accentPreset = b.dataset.k;

@@ -202,6 +202,27 @@ main{flex:1 1 auto; padding-block:26px 20px; min-width:0}
 
 .badges{display:flex; flex-wrap:wrap; gap:7px; margin-top:22px}
 
+/* figures */
+.fig{margin-top:22px}
+.fig-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:10px}
+.fig-title{font-size:13px; font-weight:700; letter-spacing:-.01em}
+.fig-foot{margin-top:8px}
+.chart{width:100%; height:84px; display:block; overflow:visible}
+.bar{transition:opacity 140ms var(--ease)}
+.bar.hot{opacity:.65}
+
+.segbar{display:flex; gap:2px; height:14px; border-radius:var(--r-pill); overflow:hidden; background:var(--surface-2)}
+.seg-bar{min-width:3px}
+.keys{display:flex; flex-wrap:wrap; gap:10px 14px; margin-top:10px}
+.key{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--text-3)}
+.key i{width:9px; height:9px; border-radius:3px; display:inline-block}
+.key b{color:var(--text-2); font-weight:650}
+
+.heat{display:grid; grid-template-columns:repeat(14, 1fr); gap:4px}
+.cell{aspect-ratio:1; border-radius:4px; background:var(--surface-2)}
+.cell.on{background:var(--accent)}
+.cell.now{box-shadow:0 0 0 1.5px var(--text-3)}
+
 /* the word list */
 .wlist{display:flex; flex-direction:column; margin-top:8px}
 .wrow{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 0}
@@ -1855,6 +1876,129 @@ function levelFor(points) {
   return { level: level, into: points - floor, span: span, fraction: span ? (points - floor) / span : 0 };
 }
 
+
+// ── charts ───────────────────────────────────────────────────────────────────
+// One accent, everything else greyscale — the same rule the gym app follows.
+// Each chart answers one question, and says in a line what it is for.
+
+const STAGE_LABEL = {
+  2: "Recognise", 3: "Produce", 4: "Recall", 5: "Say it", 6: "Own it"
+};
+
+// What is coming back at you, day by day. The bar chart exists because the
+// shape of the next fortnight is the one thing the daily view cannot show.
+function forecast(days) {
+  const out = [];
+  for (let i = 0; i < days; i++) {
+    const key = addDays(dayKey, i);
+    let n = 0;
+    for (const id in STATE.cards) {
+      const c = STATE.cards[id];
+      if (!c || c.known || c.stage < 2) continue;
+      const d = daysBetween(c.next, key);
+      if (i === 0 ? d >= 0 : d === 0) n++;     // today absorbs everything overdue
+    }
+    out.push({ key: key, n: n });
+  }
+  return out;
+}
+
+function barChart(data, opts) {
+  const o = opts || {};
+  const W = 320, H = 84, pad = 2;
+  const max = Math.max(1, ...data.map(d => d.n));
+  const slot = W / data.length;
+  const bw = Math.max(6, slot - 5);
+  const bars = data.map((d, i) => {
+    const h = d.n ? Math.max(4, Math.round((d.n / max) * (H - 14))) : 2;
+    const x = Math.round(i * slot + (slot - bw) / 2);
+    const y = H - h;
+    const fill = d.n ? "var(--accent)" : "var(--surface-3)";
+    // 4px rounded ends, anchored to the baseline
+    return '<rect class="bar" data-i="' + i + '" x="' + x + '" y="' + y + '" width="' + bw +
+           '" height="' + h + '" rx="3" fill="' + fill + '"></rect>';
+  }).join("");
+  return '<svg class="chart" viewBox="0 0 ' + W + ' ' + (H + pad) + '" preserveAspectRatio="none" ' +
+         'role="img" aria-label="' + esc(o.label || "chart") + '">' + bars + '</svg>';
+}
+
+// Where every word sits on the ladder: one hue, light to dark, 2px gaps.
+function stageBar() {
+  const counts = { 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+  let total = 0;
+  for (const id in STATE.cards) {
+    const c = STATE.cards[id];
+    if (!c || c.known) continue;
+    const st = Math.min(6, Math.max(2, c.stage));
+    counts[st]++; total++;
+  }
+  if (!total) return '<div class="meta">Nothing on the ladder yet.</div>';
+
+  const steps = [2, 3, 4, 5, 6];
+  const op = { 2: .3, 3: .45, 4: .62, 5: .8, 6: 1 };
+  const segs = steps.filter(k => counts[k]).map(k =>
+    '<div class="seg-bar" style="flex:' + counts[k] + '; background:var(--accent); opacity:' +
+    op[k] + '" title="' + STAGE_LABEL[k] + ': ' + counts[k] + '"></div>').join("");
+
+  const keys = steps.filter(k => counts[k]);
+  const legend = keys.map(k =>
+    '<span class="key"><i style="background:var(--accent); opacity:' + op[k] + '"></i>' +
+    STAGE_LABEL[k] + ' <b class="num">' + counts[k] + '</b></span>').join("");
+
+  return '<div class="segbar">' + segs + '</div><div class="keys">' + legend + '</div>';
+}
+
+// Eight weeks of turning up. One cell per day, today ringed.
+function heatGrid() {
+  let cells = "";
+  for (let i = 55; i >= 0; i--) {
+    const key = addDays(dayKey, -i);
+    const d = STATE.days[key];
+    const on = d && d.complete;
+    cells += '<i class="cell' + (on ? " on" : "") + (i === 0 ? " now" : "") +
+             '" title="' + key + (on ? " \u00b7 done" : "") + '"></i>';
+  }
+  return '<div class="heat">' + cells + '</div>';
+}
+
+// Words seen over time, cumulative. A line, because the question is the shape
+// of the climb rather than any single day's number.
+function growthChart() {
+  const intros = [];
+  for (const id in STATE.cards) {
+    const c = STATE.cards[id];
+    if (c && c.intro && !c.known) intros.push(c.intro);
+  }
+  if (intros.length < 2) return "";
+  intros.sort();
+
+  const span = 30;
+  const pts = [];
+  for (let i = span - 1; i >= 0; i--) {
+    const key = addDays(dayKey, -i);
+    pts.push(intros.filter(d => d <= key).length);
+  }
+  const W = 320, H = 70, max = Math.max(1, pts[pts.length - 1]);
+  const x = i => (i / (pts.length - 1)) * W;
+  const y = v => H - (v / max) * (H - 6) - 2;
+
+  const line = pts.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(v).toFixed(1)).join(" ");
+  const area = line + " L" + W + " " + H + " L0 " + H + " Z";
+  return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" ' +
+         'role="img" aria-label="Words seen over the last 30 days">' +
+           '<path d="' + area + '" fill="var(--accent)" opacity=".13"></path>' +
+           '<path d="' + line + '" fill="none" stroke="var(--accent)" stroke-width="2" ' +
+             'stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>' +
+         '</svg>';
+}
+
+function figure(title, note, body, foot) {
+  return '<div class="fig">' +
+    '<div class="fig-head"><span class="fig-title">' + title + '</span>' +
+    (note ? '<span class="meta">' + note + '</span>' : '') + '</div>' +
+    body + (foot ? '<div class="fig-foot meta" >' + foot + '</div>' : '') + '</div>';
+}
+
 // ── home ─────────────────────────────────────────────────────────────────────
 function greeting() {
   const h = new Date().getHours();
@@ -1887,6 +2031,8 @@ function home() {
   const lv = levelFor(totalXp());
   const [hi, hiEn] = greeting();
 
+  const fc = forecast(14);
+  const growth = growthChart();
   const C = 2 * Math.PI * 54;
   stage.innerHTML =
     '<div class="screen">' +
@@ -1922,6 +2068,17 @@ function home() {
         tile(st.reviewsCompleted, "", "Reviews") +
       '</div>' +
 
+      figure("Reviews ahead", "next 14 days",
+        barChart(fc, { label: "Reviews due over the next fourteen days" }),
+        '<span id="fcap">' + fcCaption(fc) + '</span>') +
+
+      figure("The ladder", st.total ? "where your words sit" : "", stageBar(),
+        "Each word climbs: recognise it, produce it, recall it, say it, own it.") +
+
+      (growth ? figure("Words seen", "last 30 days", growth, "") : "") +
+
+      figure("Turning up", "8 weeks", heatGrid(), "") +
+
       badges(st) +
     '</div>';
 
@@ -1946,7 +2103,46 @@ function home() {
   };
   document.getElementById("words").onclick = wordsScreen;
 
+  wireChart(fc);
   animateHome();
+}
+
+function fcCaption(fc) {
+  const total = fc.reduce((n, d) => n + d.n, 0);
+  const peak = fc.reduce((a, b) => (b.n > a.n ? b : a), fc[0]);
+  if (!total) return "Nothing due in the next fortnight.";
+  return total + " review" + (total === 1 ? "" : "s") + " due \u00b7 busiest day " +
+         niceDay(peak.key) + " with " + peak.n;
+}
+
+function niceDay(key) {
+  const d = parseKey(key);
+  const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return key === dayKey ? "today" : names[d.getDay()] + " " + d.getDate();
+}
+
+// Touch or hover a bar and the caption under the chart names that day. Cheaper
+// and steadier on a phone than a floating tooltip.
+function wireChart(fc) {
+  const cap = document.getElementById("fcap");
+  const svg = stage.querySelector(".chart");
+  if (!cap || !svg) return;
+  const base = cap.textContent;
+  const show = e => {
+    const bar = e.target.closest(".bar");
+    if (!bar) return;
+    const d = fc[+bar.dataset.i];
+    cap.textContent = niceDay(d.key) + " \u00b7 " + (d.n || "nothing") +
+      (d.n ? (d.n === 1 ? " review" : " reviews") : " due");
+    stage.querySelectorAll(".bar").forEach(b => b.classList.toggle("hot", b === bar));
+  };
+  const clear = () => {
+    cap.textContent = base;
+    stage.querySelectorAll(".bar").forEach(b => b.classList.remove("hot"));
+  };
+  svg.addEventListener("pointermove", show);
+  svg.addEventListener("pointerdown", show);
+  svg.addEventListener("pointerleave", clear);
 }
 
 // Everything is already in its finished position in the markup; this only adds

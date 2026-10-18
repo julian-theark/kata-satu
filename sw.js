@@ -1,7 +1,7 @@
 // sw.js — offline app shell for Kata Satu.
 // Cache first, refreshed in the background. The version is the build's hash, so
 // publishing a new build retires the old cache by itself.
-const CACHE = "kata-satu-bedc12dc6fc0";
+const CACHE = "kata-satu-7cb8b497cabb";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest",
                "./icon/icon-192.png", "./icon/icon-512.png", "./icon/apple-touch-icon.png"];
 

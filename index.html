@@ -92,10 +92,12 @@ html.standalone .topbar{top:env(safe-area-inset-top, 0px)}
   border-radius:var(--r-pill); color:var(--text-2); background:var(--surface);
   transition:background 140ms var(--ease), color 140ms var(--ease), transform 140ms var(--ease);
 }
-.iconbtn:active{background:var(--surface-3); color:var(--text); transform:scale(.93)}
+.iconbtn{transition:transform 420ms var(--ease-spring), background 140ms var(--ease), color 140ms var(--ease); touch-action:manipulation}
+.iconbtn:active{background:var(--surface-3); color:var(--text); transform:scale(.9); transition-duration:60ms; transition-timing-function:var(--ease)}
 .iconbtn svg{width:19px; height:19px}
 
 main{flex:1 1 auto; padding-block:26px 20px; min-width:0}
+main.centred{display:flex; flex-direction:column; justify-content:center; padding-block:12px}
 .screen{animation:fade 220ms var(--ease)}
 @keyframes fade{from{opacity:0} to{opacity:1}}
 
@@ -132,9 +134,10 @@ main{flex:1 1 auto; padding-block:26px 20px; min-width:0}
   width:100%; text-align:left; display:flex; align-items:center; gap:10px;
   background:var(--surface); border-radius:var(--r); padding:17px 18px;
   font-size:16px; font-weight:600; letter-spacing:-.01em; color:var(--text);
-  transition:transform 160ms var(--ease), background 160ms var(--ease), box-shadow 160ms var(--ease);
+  transition:transform 420ms var(--ease-spring), background 160ms var(--ease), box-shadow 160ms var(--ease);
+  will-change:transform; touch-action:manipulation;
 }
-.opt:active{transform:scale(.975); background:var(--surface-2)}
+.opt:active{transform:scale(.97); transition-duration:60ms; transition-timing-function:var(--ease); background:var(--surface-2)}
 .opt .mark{width:18px; flex:0 0 18px; font-size:13px; opacity:0; transition:opacity 150ms var(--ease)}
 .opt.right{background:var(--accent-soft); box-shadow:inset 0 0 0 1px var(--accent-line); color:var(--accent)}
 .opt.right .mark{opacity:1}
@@ -170,9 +173,14 @@ main{flex:1 1 auto; padding-block:26px 20px; min-width:0}
   min-height:56px; padding:0 24px; border-radius:var(--r-pill);
   font-size:16px; font-weight:650; letter-spacing:-.005em;
   background:var(--surface); color:var(--text);
-  transition:transform 260ms var(--ease-spring), background 150ms var(--ease), opacity 150ms var(--ease);
+  /* Only transform and opacity animate: both are composited, so the press
+     cannot stutter behind a layout or paint. The press is near-instant, the
+     release springs back — that asymmetry is what reads as physical. */
+  transition:transform 420ms var(--ease-spring), opacity 150ms var(--ease);
+  will-change:transform;
+  touch-action:manipulation;
 }
-.btn:active{transform:scale(.965); transition-duration:90ms}
+.btn:active{transform:scale(.955); transition-duration:60ms; transition-timing-function:var(--ease)}
 .btn-primary{background:var(--accent); color:var(--accent-ink); font-weight:700; letter-spacing:-.01em}
 .btn-primary:active{filter:brightness(.9)}
 .btn-ghost{background:var(--surface); color:var(--text-2)}
@@ -181,18 +189,17 @@ main{flex:1 1 auto; padding-block:26px 20px; min-width:0}
 /* The action bar is the one place a button owns the full width. */
 .bottombar .btn{display:flex; width:100%}
 
-/* home */
-.hello{font-size:30px; font-weight:780; letter-spacing:-.035em; line-height:1.05; margin-top:8px}
-.ringwrap{position:relative; width:168px; height:168px; margin:22px auto 4px}
-.ring{width:100%; height:100%; display:block}
-.ringmid{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px}
-.ringmid b{font-size:46px; font-weight:780; letter-spacing:-.04em; line-height:1}
-.ringmid span{font-size:12px; color:var(--text-3)}
+/* home — the word is the page; everything else is a hairline under it */
+.homeex{font-size:17px; font-weight:600; letter-spacing:-.01em; margin-top:22px}
+.facts{display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; margin-top:34px; font-size:13.5px; color:var(--text-3)}
+.facts b{font-size:17px; font-weight:700; letter-spacing:-.02em; color:var(--text); margin-right:3px}
+.dot{color:var(--text-4)}
+.thin{height:3px; border-radius:var(--r-pill); background:var(--surface-2); margin-top:12px; overflow:hidden}
+.thin i{display:block; height:100%; background:var(--accent); border-radius:var(--r-pill); transition:width 700ms var(--ease)}
 
-.week{display:flex; gap:6px; justify-content:center; margin-top:10px}
-.wk{width:26px; height:6px; border-radius:var(--r-pill); background:var(--surface-2)}
-.wk.on{background:var(--accent)}
-.wk.today{box-shadow:0 0 0 2px var(--bg), 0 0 0 3px var(--line-strong)}
+.links{display:flex; align-items:center; justify-content:center; gap:10px; padding:4px 0 2px}
+.link{font-size:14px; font-weight:600; color:var(--text-3); padding:8px 6px}
+.link:active{color:var(--text)}
 
 .lvl{margin-top:24px}
 .lvl-top{display:flex; justify-content:space-between; align-items:baseline; font-size:13.5px; font-weight:650; color:var(--text-2); margin-bottom:8px}
@@ -243,13 +250,25 @@ main{flex:1 1 auto; padding-block:26px 20px; min-width:0}
 .set{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:14px 0; flex-wrap:wrap}
 .set+.set{border-top:1px solid var(--line)}
 .set label{font-size:15px; font-weight:600; letter-spacing:-.01em}
-.seg{display:flex; flex-wrap:wrap; padding:4px; background:var(--surface); border-radius:var(--r-pill); gap:2px; max-width:100%}
-.seg button{
-  min-height:38px; padding:0 13px; border-radius:var(--r-pill);
-  font-size:14px; font-weight:650; letter-spacing:-.01em;
-  color:var(--text-3); transition:color 200ms var(--ease), background 200ms var(--ease);
+.seg{
+  position:relative; isolation:isolate; display:flex; padding:4px; max-width:100%;
+  background:var(--surface); border-radius:var(--r-pill);
 }
-.seg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink)}
+.seg-thumb{
+  position:absolute; z-index:-1; top:4px; bottom:4px; left:4px;
+  width:calc((100% - 8px) / var(--seg-n, 2));
+  border-radius:var(--r-pill); background:var(--accent);
+  transform:translateX(calc(var(--seg-i, 0) * 100%));
+  transition:transform 420ms var(--ease-spring);
+}
+.seg button{
+  flex:1 1 0; min-width:0; min-height:38px; padding:0 12px;
+  border-radius:var(--r-pill); font-size:14px; font-weight:650; letter-spacing:-.01em;
+  color:var(--text-3); background:transparent;
+  transition:color 220ms var(--ease);
+  touch-action:manipulation;
+}
+.seg button[aria-pressed="true"]{color:var(--accent-ink)}
 .pair{display:flex; flex-direction:column; gap:10px; margin-top:14px}
 .input{
   width:100%; min-height:48px; padding:0 16px; border-radius:var(--r-pill);
@@ -259,8 +278,14 @@ main{flex:1 1 auto; padding-block:26px 20px; min-width:0}
 .input::placeholder{color:var(--text-4)}
 .input:focus{outline:none; border-color:var(--accent-line); background:var(--surface-2)}
 .swatches{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end}
-.sw{width:30px; height:30px; border-radius:var(--r-pill); box-shadow:inset 0 0 0 2px transparent; transition:transform 200ms var(--ease-spring)}
-.sw[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--bg), 0 0 0 2px var(--text); transform:scale(1.06)}
+.sw{
+  width:30px; height:30px; border-radius:var(--r-pill);
+  box-shadow:inset 0 0 0 2px transparent, 0 0 0 0 var(--text);
+  transition:transform 420ms var(--ease-spring), box-shadow 220ms var(--ease);
+  touch-action:manipulation;
+}
+.sw:active{transform:scale(.9); transition-duration:60ms}
+.sw[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--bg), 0 0 0 2px var(--text); transform:scale(1.08)}
 
 /* first run */
 .pick{display:flex; flex-wrap:wrap; gap:8px}
@@ -271,7 +296,8 @@ main{flex:1 1 auto; padding-block:26px 20px; min-width:0}
   font-size:15px; font-weight:600; letter-spacing:-.01em;
   transition:transform 160ms var(--ease), background 160ms var(--ease);
 }
-.chip:active{transform:scale(.955)}
+.chip{transition:transform 420ms var(--ease-spring), background 160ms var(--ease), color 160ms var(--ease); touch-action:manipulation}
+.chip:active{transform:scale(.94); transition-duration:60ms; transition-timing-function:var(--ease)}
 .chip small{font-size:11px; font-weight:500; color:var(--text-3); letter-spacing:0}
 .chip[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink)}
 .chip[aria-pressed="true"] small{color:var(--accent-ink); opacity:.65}
@@ -1633,6 +1659,7 @@ function pips() {
 function render() {
   const st = stats(STATE, VOCAB, dayKey);
   dayEl.textContent = "Day " + st.dayNumber;
+  stage.classList.remove("centred");
   if (atHome) { pipsEl.innerHTML = ""; return home(); }
   pips();
   if (!steps.length) return done();
@@ -2023,75 +2050,55 @@ function weekStrip() {
 
 function home() {
   const st = stats(STATE, VOCAB, dayKey);
-  const plan0 = plan;
-  const total = plan0.newIds.length + plan0.reviewIds.length;
+  const total = plan.newIds.length + plan.reviewIds.length;
   const left = steps.length;
   const doneNow = Math.max(0, total - left);
-  const frac = total ? doneNow / total : 1;
-  const lv = levelFor(totalXp());
   const [hi, hiEn] = greeting();
+  const vm = byId(VOCAB);
 
-  const fc = forecast(14);
-  const growth = growthChart();
-  const C = 2 * Math.PI * 54;
-  stage.innerHTML =
-    '<div class="screen">' +
-      '<div class="label">' + esc(hi) + '</div>' +
-      '<div class="hello">' + esc(hiEn) + '</div>' +
+  // The hero is the word itself, not a dashboard. Before you have met today's
+  // word it stays hidden — the app is not going to spoil its own lesson — and
+  // what shows instead is the invitation.
+  const day = STATE.days[dayKey] || {};
+  const seenId = day.newSeen ? (plan.newIds[0] || null) : null;
+  const w = seenId ? vm[seenId] : null;
 
-      '<div class="ringwrap">' +
-        '<svg class="ring" viewBox="0 0 128 128" aria-hidden="true">' +
-          '<circle cx="64" cy="64" r="54" fill="none" stroke="var(--surface-2)" stroke-width="10"></circle>' +
-          '<circle class="ring-fg" cx="64" cy="64" r="54" fill="none" stroke="var(--accent)" ' +
-            'stroke-width="10" stroke-linecap="round" transform="rotate(-90 64 64)" ' +
-            'stroke-dasharray="' + C.toFixed(1) + '" stroke-dashoffset="' + C.toFixed(1) + '" ' +
-            'data-to="' + (C * (1 - frac)).toFixed(1) + '"></circle>' +
-        '</svg>' +
-        '<div class="ringmid">' +
-          '<b class="num" data-count="' + st.streak + '">0</b>' +
-          '<span>day streak</span>' +
-        '</div>' +
-      '</div>' +
+  const hero = w
+    ? '<div class="label">Today\u2019s word</div>' +
+      '<div class="hero">' + esc(w.word) + '</div>' +
+      '<div class="gloss">' + esc(w.en) + '</div>' +
+      '<div class="homeex">' + hl(w.ex, w.word) + '</div>' +
+      '<div class="exEn">' + esc(w.exEn) + '</div>'
+    : '<div class="label">' + esc(hi) + '</div>' +
+      '<div class="hero">' + esc(hiEn) + '</div>' +
+      '<div class="gloss" style="margin-top:10px">' +
+        (left ? "A new word is waiting." : "Nothing left today.") + '</div>';
 
-      weekStrip() +
+  // One quiet line of facts, and a hairline that fills as the day is done.
+  const facts =
+    '<div class="facts">' +
+      '<span><b class="num" data-count="' + st.streak + '">0</b> day streak</span>' +
+      '<span class="dot">\u00b7</span>' +
+      '<span><b class="num">' + st.learning + '</b> learning</span>' +
+      '<span class="dot">\u00b7</span>' +
+      '<span><b class="num">' + st.mastered + '</b> mastered</span>' +
+    '</div>' +
+    '<div class="thin"><i style="width:' +
+      (total ? Math.round((doneNow / total) * 100) : 100) + '%"></i></div>';
 
-      '<div class="lvl">' +
-        '<div class="lvl-top"><span>Level ' + lv.level + '</span>' +
-          '<span class="num">' + lv.into + ' / ' + lv.span + '</span></div>' +
-        '<div class="track"><i style="width:' + Math.round(lv.fraction * 100) + '%"></i></div>' +
-      '</div>' +
-
-      '<div class="tiles">' +
-        tile(st.learning, "", "Learning") +
-        tile(st.mastered, "", "Mastered") +
-        tile(st.introduced, " of " + st.total, "Words seen") +
-        tile(st.reviewsCompleted, "", "Reviews") +
-      '</div>' +
-
-      figure("Reviews ahead", "next 14 days",
-        barChart(fc, { label: "Reviews due over the next fourteen days" }),
-        '<span id="fcap">' + fcCaption(fc) + '</span>') +
-
-      figure("The ladder", st.total ? "where your words sit" : "", stageBar(),
-        "Each word climbs: recognise it, produce it, recall it, say it, own it.") +
-
-      (growth ? figure("Words seen", "last 30 days", growth, "") : "") +
-
-      figure("Turning up", "8 weeks", heatGrid(), "") +
-
-      badges(st) +
-    '</div>';
+  // The home screen is the only one that sits in the middle of the page: it is
+  // a place to pause, the others are a queue to work through.
+  stage.classList.add("centred");
+  stage.innerHTML = '<div class="screen">' + hero + facts + '</div>';
 
   if (left) {
     act('<button class="btn btn-primary" id="go">' +
-          (doneNow ? "Continue \u2014 " + left + " to go"
-                   : "Start today \u00b7 " + total + (total === 1 ? " item" : " items")) +
-        '</button>' +
-        '<button class="btn btn-ghost btn-sm" id="words">The words I\u2019m learning</button>');
+          (doneNow ? "Continue \u2014 " + left + " to go" : "Start today") + '</button>' +
+        homeLinks());
   } else {
     const more = canAddExtra(STATE, VOCAB, plan);
-    act((more ? '<button class="btn btn-primary" id="more">Teach me one more word</button>' : "") +
-        '<button class="btn btn-ghost btn-sm" id="words">The words I\u2019m learning</button>');
+    act((more ? '<button class="btn btn-primary" id="more">One more word</button>' : "") +
+        homeLinks());
   }
 
   const go = document.getElementById("go");
@@ -2102,11 +2109,83 @@ function home() {
     save(); atHome = false; rebuild(); render();
   };
   document.getElementById("words").onclick = wordsScreen;
+  document.getElementById("prog").onclick = progressScreen;
 
-  wireChart(fc);
   animateHome();
 }
 
+function homeLinks() {
+  return '<div class="links">' +
+    '<button class="link" id="words">My words</button>' +
+    '<span class="dot">\u00b7</span>' +
+    '<button class="link" id="prog">Progress</button>' +
+  '</div>';
+}
+
+// ── progress ─────────────────────────────────────────────────────────────────
+// Everything measurable lives here, one tap away, so the home screen can stay
+// about the word.
+function progressScreen() {
+  const st = stats(STATE, VOCAB, dayKey);
+  const fc = forecast(14);
+  const growth = growthChart();
+  const lv = levelFor(totalXp());
+
+  stage.innerHTML =
+    '<div class="screen">' +
+      '<div class="title">Progress</div>' +
+
+      '<div class="lvl" style="margin-top:20px">' +
+        '<div class="lvl-top"><span>Level ' + lv.level + '</span>' +
+          '<span class="num">' + lv.into + ' / ' + lv.span + '</span></div>' +
+        '<div class="track"><i style="width:' + Math.round(lv.fraction * 100) + '%"></i></div>' +
+      '</div>' +
+
+      '<div class="tiles">' +
+        tile(st.streak, "", "Day streak") +
+        tile(st.longest, "", "Best streak") +
+        tile(st.introduced, " of " + st.total, "Words seen") +
+        tile(st.reviewsCompleted, "", "Reviews") +
+      '</div>' +
+
+      figure("Reviews ahead", "next 14 days",
+        barChart(fc, { label: "Reviews due over the next fourteen days" }),
+        '<span id="fcap">' + fcCaption(fc) + '</span>') +
+
+      figure("The ladder", "where your words sit", stageBar(),
+        "Each word climbs: recognise it, produce it, recall it, say it, own it.") +
+
+      (growth ? figure("Words seen", "last 30 days", growth, "") : "") +
+
+      figure("Turning up", "8 weeks", heatGrid(), "") +
+
+      badges(st) +
+    '</div>';
+
+  act('<button class="btn btn-primary" id="back">Done</button>');
+  document.getElementById("back").onclick = () => { atHome = true; rebuild(); render(); };
+  wireChart(fc);
+}
+
+// Everything is already in its finished position in the markup; this only adds
+// the arrival. A reduced-motion setting skips straight to the end state.
+function animateHome() {
+  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const num = stage.querySelector("[data-count]");
+  const target = num ? +num.dataset.count : 0;
+  if (!num) return;
+  if (reduce || target === 0) { num.textContent = String(target); return; }
+
+  const t0 = performance.now(), ms = 650;
+  const step = now => {
+    const p = Math.min(1, (now - t0) / ms);
+    num.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))));
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+// Milestones, not trophies: each one names a real threshold in the method.
 function fcCaption(fc) {
   const total = fc.reduce((n, d) => n + d.n, 0);
   const peak = fc.reduce((a, b) => (b.n > a.n ? b : a), fc[0]);
@@ -2121,8 +2200,8 @@ function niceDay(key) {
   return key === dayKey ? "today" : names[d.getDay()] + " " + d.getDate();
 }
 
-// Touch or hover a bar and the caption under the chart names that day. Cheaper
-// and steadier on a phone than a floating tooltip.
+// Touch a bar and the caption under the chart names that day. Steadier on a
+// phone than a floating tooltip, and it cannot fall off the screen edge.
 function wireChart(fc) {
   const cap = document.getElementById("fcap");
   const svg = stage.querySelector(".chart");
@@ -2145,34 +2224,6 @@ function wireChart(fc) {
   svg.addEventListener("pointerleave", clear);
 }
 
-// Everything is already in its finished position in the markup; this only adds
-// the arrival. A reduced-motion setting skips straight to the end state.
-function animateHome() {
-  const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const ring = stage.querySelector(".ring-fg");
-  const num = stage.querySelector(".ringmid b");
-  const target = num ? +num.dataset.count : 0;
-
-  if (ring) {
-    if (reduce) ring.style.strokeDashoffset = ring.dataset.to;
-    else requestAnimationFrame(() => {
-      ring.style.transition = "stroke-dashoffset 900ms var(--ease)";
-      ring.style.strokeDashoffset = ring.dataset.to;
-    });
-  }
-  if (!num) return;
-  if (reduce || target === 0) { num.textContent = String(target); return; }
-
-  const t0 = performance.now(), ms = 650;
-  const step = now => {
-    const p = Math.min(1, (now - t0) / ms);
-    num.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))));
-    if (p < 1) requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
-}
-
-// Milestones, not trophies: each one names a real threshold in the method.
 function badges(st) {
   const list = [
     ["First word", st.introduced >= 1],
@@ -2273,7 +2324,7 @@ function settings() {
       '<div class="label label-quiet" style="margin-top:22px">Daily load</div>' +
       seg("New words", "newWordsPerDay", [[1, "1"], [2, "2"], [3, "3"]]) +
       seg("Reviews", "reviewsPerDay", [[1, "1"], [2, "2"], [3, "3"], [5, "5"]]) +
-      seg("Asking", "direction", [["adaptive", "Adaptive"], ["both", "Both"],
+      seg("Asking", "direction", [["adaptive", "Auto"], ["both", "Both"],
                                   ["id_en", "ID\u2192EN"], ["en_id", "EN\u2192ID"]]) +
 
       '<div class="label label-quiet" style="margin-top:22px">Storage</div>' +
@@ -2290,7 +2341,10 @@ function settings() {
 
   stage.querySelectorAll("#sw .sw").forEach(b => b.onclick = () => {
     STATE.settings.accentPreset = b.dataset.k;
-    save(); applyAccent(); settings();
+    save();
+    applyAccent();                       // the tokens change; nothing is replaced
+    stage.querySelectorAll("#sw .sw").forEach(x =>
+      x.setAttribute("aria-pressed", x === b ? "true" : "false"));
   });
   stage.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
     const key = b.dataset.key;
@@ -2298,9 +2352,16 @@ function settings() {
     if (/^\d+$/.test(v)) v = +v;
     STATE.settings[key] = v;
     save();
+
+    // Slide the thumb and repaint the labels in place. Re-rendering the screen
+    // would replace the element mid-transition, which is what made this feel
+    // like a jump rather than a movement.
+    const seg = b.parentElement;
+    const buttons = [...seg.querySelectorAll("button")];
+    seg.style.setProperty("--seg-i", buttons.indexOf(b));
+    buttons.forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
     // Today's plan is left alone on purpose: rebuilding it would throw away the
     // answers already recorded against it. A changed load starts tomorrow.
-    settings();
   });
 
   const pairBtn = document.getElementById("pair");
@@ -2385,11 +2446,16 @@ function storageBlock() {
          '</div>';
 }
 
+// The thumb is one element that slides, rather than two backgrounds swapping:
+// the movement is what makes a segmented control feel physical.
 function seg(label, key, pairs) {
   const cur = STATE.settings[key];
-  return '<div class="set"><label>' + label + '</label><div class="seg">' +
-    pairs.map(p => '<button data-key="' + key + '" data-v="' + p[0] + '" aria-pressed="' +
-      (String(cur) === String(p[0]) ? "true" : "false") + '">' + p[1] + '</button>').join("") +
+  const i = Math.max(0, pairs.findIndex(p => String(p[0]) === String(cur)));
+  return '<div class="set"><label>' + label + '</label>' +
+    '<div class="seg" style="--seg-n:' + pairs.length + '; --seg-i:' + i + '">' +
+      '<i class="seg-thumb"></i>' +
+      pairs.map(p => '<button data-key="' + key + '" data-v="' + p[0] + '" aria-pressed="' +
+        (String(cur) === String(p[0]) ? "true" : "false") + '">' + p[1] + '</button>').join("") +
     '</div></div>';
 }
 

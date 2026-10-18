@@ -64,7 +64,11 @@ button{font:inherit; color:inherit; background:none; border:none; cursor:pointer
   max-width:560px; margin:0 auto; width:100%;
   padding-bottom:calc(16px + env(safe-area-inset-bottom, 0px));
 }
-/* The sticky bar sits at the safe-area edge, never under the status bar. */
+/* Installed on the Home Screen, the page owns the whole screen, status-bar strip
+   included — so it has to reserve that strip itself. In Safari the browser's own
+   chrome already does it, hence the class rather than a blanket padding. */
+html.standalone #app{padding-top:env(safe-area-inset-top, 0px)}
+html.standalone .topbar{top:env(safe-area-inset-top, 0px)}
 .pad{
   padding-left:max(var(--gutter), env(safe-area-inset-left, 0px));
   padding-right:max(var(--gutter), env(safe-area-inset-right, 0px));
@@ -2008,6 +2012,16 @@ function seg(label, key, pairs) {
 // iOS reads the Home Screen icon and app name from <head> at the moment you tap
 // "Add to Home Screen", and the page body is not where it looks — so the tags
 // are copied up on load.
+// Launched from the Home Screen there is no browser chrome above the page, so
+// the layout has to make room for the status bar itself.
+(function standaloneLayout() {
+  try {
+    const installed = navigator.standalone === true ||
+      (window.matchMedia && matchMedia("(display-mode: standalone)").matches);
+    if (installed) document.documentElement.classList.add("standalone");
+  } catch (e) {}
+})();
+
 (function homeScreenIcon() {
   try {
     const want = [

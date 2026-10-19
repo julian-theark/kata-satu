@@ -948,6 +948,13 @@ function promptFor(card, direction) {
   let dir = rule.dir, fmt = rule.fmt;
   if (direction === "id_en" || direction === "en_id") dir = direction;
   else if (direction === "both") dir = (card.correct + card.wrong) % 2 ? "en_id" : "id_en";
+  else if (card.stage === 2 || card.stage === 3) {
+    // Adaptive used to spend the whole multiple-choice phase asking one way,
+    // so a word could be weeks old before you were ever asked to PRODUCE it.
+    // The two choice stages now alternate, and the recall ladder above them is
+    // left alone: stage 4 recalls the meaning, 5 and 6 produce the word.
+    dir = (card.correct + card.wrong) % 2 ? "en_id" : "id_en";
+  }
   return { fmt, dir };
 }
 
@@ -1496,7 +1503,7 @@ function defaultState() {
       direction: "adaptive"
     },
     streak: { current: 0, longest: 0, lastCompletedDay: null },
-    totals: { reviewsCompleted: 0 },
+    totals: { reviewsCompleted: 0, practiceAnswers: 0, practiceCorrect: 0 },
     cards: {},
     days: {}
   };
@@ -2110,12 +2117,16 @@ function home() {
   };
   document.getElementById("words").onclick = wordsScreen;
   document.getElementById("prog").onclick = progressScreen;
+  const prac = document.getElementById("prac");
+  if (prac) prac.onclick = () => startPractice(6);
 
   animateHome();
 }
 
 function homeLinks() {
-  return '<div class="links">' +
+  const can = practicePool().length;
+  return (can ? '<button class="btn btn-ghost btn-sm" id="prac">Practice both ways</button>' : "") +
+  '<div class="links">' +
     '<button class="link" id="words">My words</button>' +
     '<span class="dot">\u00b7</span>' +
     '<button class="link" id="prog">Progress</button>' +
@@ -2147,6 +2158,13 @@ function progressScreen() {
         tile(st.introduced, " of " + st.total, "Words seen") +
         tile(st.reviewsCompleted, "", "Reviews") +
       '</div>' +
+
+      (STATE.totals.practiceAnswers
+        ? '<div class="meta" style="margin-top:14px">Plus ' + STATE.totals.practiceAnswers +
+          ' practice answers \u00b7 ' +
+          Math.round((STATE.totals.practiceCorrect / STATE.totals.practiceAnswers) * 100) +
+          '% right</div>'
+        : "") +
 
       figure("Reviews ahead", "next 14 days",
         barChart(fc, { label: "Reviews due over the next fourteen days" }),
@@ -2236,6 +2254,143 @@ function badges(st) {
   return '<div class="badges">' + list.map(b =>
     '<span class="pill' + (b[1] ? " pill-accent" : "") + '">' +
     (b[1] ? "\u2713 " : "") + b[0] + '</span>').join("") + '</div>';
+}
+
+// ── practice ─────────────────────────────────────────────────────────────────
+// Extra rounds, as many as you like, in both directions. Deliberately OUTSIDE
+// the schedule: practice never changes a card's stage or due date. Spaced
+// repetition works because the intervals are earned, and a keen evening would
+// otherwise push every word out to sixty days on a day you happened to be sharp.
+let practice = null;
+
+function practicePool() {
+  return Object.keys(STATE.cards).filter(id => {
+    const c = STATE.cards[id];
+    return c && !c.known && c.stage >= 2;
+  });
+}
+
+// One question, built fresh each time: a new seed means new distractors and a
+// new order, so a second round is not the same round again.
+function practiceQuestion(id, dir, salt) {
+  const vm = byId(VOCAB);
+  const v = vm[id];
+  const card = STATE.cards[id];
+  if (!v || !card) return null;
+
+  const rng = mulberry(hash32(id + "|" + dir + "|" + salt));
+  const introduced = Object.keys(STATE.cards);
+  const ds = distractors(VOCAB, v, introduced, rng, []);
+  const opts = shuffle([v].concat(ds), rng);
+
+  return {
+    id: id, fmt: "mc", dir: dir,
+    word: v.word, en: v.en, ex: v.ex, exEn: v.exEn, note: v.note || null,
+    options: opts.map(o => ({ id: o.id, label: dir === "id_en" ? o.en : o.word })),
+    answerIdx: opts.findIndex(o => o.id === v.id)
+  };
+}
+
+function startPractice(size) {
+  const pool = practicePool();
+  if (!pool.length) return;
+
+  // Weakest first, then a random slice of them: the words you keep missing come
+  // up more often without the round becoming identical every time.
+  const rng = mulberry(hash32(String(Date.now())));
+  const ranked = pool
+    .map(id => ({ id: id, w: scoreCard(STATE.cards[id], dayKey) + rng() * 3 }))
+    .sort((a, b) => b.w - a.w)
+    .slice(0, Math.max(size, Math.ceil(pool.length * 0.6)));
+  const picked = shuffle(ranked.map(r => r.id), rng).slice(0, size);
+
+  // Alternate the direction through the round, starting on a coin flip, so both
+  // ways get tested in every session rather than one way for weeks.
+  let flip = rng() < 0.5;
+  practice = {
+    queue: picked.map(id => {
+      const dir = flip ? "id_en" : "en_id";
+      flip = !flip;
+      return practiceQuestion(id, dir, Date.now() + ":" + id);
+    }).filter(Boolean),
+    i: 0, right: 0, wrong: 0, size: size
+  };
+  renderPractice();
+}
+
+function renderPractice() {
+  stage.classList.remove("centred");
+  if (!practice || practice.i >= practice.queue.length) return practiceDone();
+
+  const q = practice.queue[practice.i];
+  const n = practice.i + 1, of = practice.queue.length;
+  const ask = q.dir === "id_en"
+    ? 'What does <em>' + esc(q.word) + '</em> mean?'
+    : 'How do you say <em>' + esc(q.en) + '</em>?';
+
+  pipsEl.innerHTML = practice.queue.map((_, k) =>
+    '<i class="pip ' + (k < practice.i ? "done" : k === practice.i ? "now" : "") + '"></i>').join("");
+
+  stage.innerHTML =
+    '<div class="screen">' +
+      '<div class="label">Practice \u00b7 ' + n + ' of ' + of +
+        ' \u00b7 ' + (q.dir === "id_en" ? "ID \u2192 EN" : "EN \u2192 ID") + '</div>' +
+      '<div class="ask" style="margin-top:12px">' + ask + '</div>' +
+      '<div class="opts">' +
+      q.options.map((o, k) =>
+        '<button class="opt" data-k="' + k + '"><span class="mark">\u25CF</span>' +
+        '<span>' + esc(o.label) + '</span></button>').join("") +
+      '</div>' +
+    '</div>';
+  act("");
+
+  const opts = [...document.querySelectorAll(".opt")];
+  let answered = false;
+  opts.forEach(b => b.onclick = () => {
+    if (answered) return;
+    answered = true;
+    const ok = +b.dataset.k === q.answerIdx;
+    opts.forEach(o => { o.onclick = null; o.classList.add("dim"); });
+    b.classList.remove("dim");
+    b.classList.add(ok ? "right" : "shake");
+    if (!ok) {
+      b.classList.add("wrong");
+      opts[q.answerIdx].classList.remove("dim");
+      opts[q.answerIdx].classList.add("right");
+    }
+
+    // Counted for the record, never for the schedule.
+    if (ok) practice.right++; else practice.wrong++;
+    STATE.totals.practiceAnswers = (STATE.totals.practiceAnswers || 0) + 1;
+    if (ok) STATE.totals.practiceCorrect = (STATE.totals.practiceCorrect || 0) + 1;
+    save();
+
+    stage.insertAdjacentHTML("beforeend",
+      '<div class="verdict ' + (ok ? "ok" : "no") + '">' +
+      (ok ? "Correct" : 'Not quite \u2014 <b class="hl">' + esc(q.word) + '</b> is ' + esc(q.en)) +
+      '</div>');
+    act('<button class="btn btn-primary" id="pnext">Continue</button>');
+    document.getElementById("pnext").onclick = () => { practice.i++; renderPractice(); };
+  });
+}
+
+function practiceDone() {
+  const total = practice.right + practice.wrong;
+  const pct = total ? Math.round((practice.right / total) * 100) : 0;
+  pipsEl.innerHTML = "";
+  stage.classList.add("centred");
+  stage.innerHTML =
+    '<div class="screen">' +
+      '<div class="label">Practice done</div>' +
+      '<div class="hero">' + pct + '%</div>' +
+      '<div class="gloss">' + practice.right + ' of ' + total + ' both ways</div>' +
+      '<div class="meta" style="margin-top:22px">Practice does not move any word\u2019s ' +
+        'schedule \u2014 those intervals stay earned.</div>' +
+    '</div>';
+  act('<button class="btn btn-primary" id="again">Practice again</button>' +
+      '<button class="btn btn-ghost btn-sm" id="pdone">Back</button>');
+  document.getElementById("again").onclick = () => startPractice(practice.size);
+  document.getElementById("pdone").onclick = () => { practice = null; atHome = true; rebuild(); render(); };
 }
 
 // ── what you are learning ────────────────────────────────────────────────────

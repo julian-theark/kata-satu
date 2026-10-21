@@ -83,7 +83,12 @@ html.standalone .topbar{top:env(safe-area-inset-top, 0px)}
   backdrop-filter:saturate(170%) blur(20px); -webkit-backdrop-filter:saturate(170%) blur(20px);
 }
 .pips{display:flex; gap:6px; align-items:center; flex:1 1 auto; min-width:0}
-.pip{width:7px; height:7px; border-radius:var(--r-pill); background:var(--surface-3); transition:transform 400ms var(--ease-spring), background 200ms var(--ease)}
+.pip{
+  width:7px; height:7px; border-radius:var(--r-pill); background:var(--surface-3);
+  transition:transform 420ms var(--ease-spring), background 220ms var(--ease);
+}
+@keyframes pipPop{0%{transform:scale(1)} 45%{transform:scale(1.9)} 100%{transform:scale(1)}}
+.pip.just{animation:pipPop 460ms var(--ease-spring)}
 .pip.done{background:var(--accent)}
 .pip.now{background:var(--accent); transform:scale(1.6)}
 .day{font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3)}
@@ -100,6 +105,22 @@ main{flex:1 1 auto; padding-block:26px 20px; min-width:0}
 main.centred{display:flex; flex-direction:column; justify-content:center; padding-block:12px}
 .screen{animation:fade 220ms var(--ease)}
 @keyframes fade{from{opacity:0} to{opacity:1}}
+
+/* Each block of a screen arrives a beat after the one above it. Small enough
+   that you feel it rather than watch it: 34ms apart, done inside a fifth of a
+   second, and every element ends where it would have been anyway. */
+@keyframes riseIn{from{opacity:0; transform:translateY(9px)} to{opacity:1; transform:none}}
+.screen>*{animation:riseIn 300ms var(--ease) both}
+.screen>*:nth-child(1){animation-delay:0ms}
+.screen>*:nth-child(2){animation-delay:34ms}
+.screen>*:nth-child(3){animation-delay:68ms}
+.screen>*:nth-child(4){animation-delay:102ms}
+.screen>*:nth-child(5){animation-delay:136ms}
+.screen>*:nth-child(n+6){animation-delay:170ms}
+
+/* The action bar comes up with them. */
+@keyframes barIn{from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:none}}
+.bottombar>*{animation:barIn 320ms var(--ease-spring) both; animation-delay:60ms}
 
 /* type */
 .label{font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--accent)}
@@ -130,6 +151,12 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
 
 /* answers */
 .opts{display:flex; flex-direction:column; gap:10px; margin-top:22px}
+/* The options deal themselves out, top to bottom. */
+.opts .opt{animation:riseIn 280ms var(--ease) both}
+.opts .opt:nth-child(1){animation-delay:40ms}
+.opts .opt:nth-child(2){animation-delay:85ms}
+.opts .opt:nth-child(3){animation-delay:130ms}
+.opts .opt:nth-child(4){animation-delay:175ms}
 .opt{
   width:100%; text-align:left; display:flex; align-items:center; gap:10px;
   background:var(--surface); border-radius:var(--r); padding:17px 18px;
@@ -138,16 +165,37 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
   will-change:transform; touch-action:manipulation;
 }
 .opt:active{transform:scale(.97); transition-duration:60ms; transition-timing-function:var(--ease); background:var(--surface-2)}
-.opt .mark{width:18px; flex:0 0 18px; font-size:13px; opacity:0; transition:opacity 150ms var(--ease)}
+.opt .mark{
+  width:18px; flex:0 0 18px; font-size:13px; opacity:0; transform:scale(.4);
+  transition:opacity 180ms var(--ease), transform 320ms var(--ease-spring);
+}
+.opt.right .mark,.opt.wrong .mark{transform:scale(1)}
 .opt.right{background:var(--accent-soft); box-shadow:inset 0 0 0 1px var(--accent-line); color:var(--accent)}
 .opt.right .mark{opacity:1}
 .opt.wrong{background:var(--neg-soft); box-shadow:inset 0 0 0 1px rgba(255,107,90,.3); color:var(--neg)}
 .opt.wrong .mark{opacity:1}
 .opt.dim{opacity:.4}
-@keyframes nudge{20%{transform:translateX(-6px)} 45%{transform:translateX(6px)} 70%{transform:translateX(-3px)} 100%{transform:none}}
-.opt.shake{animation:nudge .36s var(--ease)}
+@keyframes nudge{20%{transform:translateX(-7px)} 45%{transform:translateX(7px)} 70%{transform:translateX(-3px)} 100%{transform:none}}
+.opt.shake{animation:nudge .4s var(--ease)}
 
-.verdict{margin-top:20px; font-size:15px; font-weight:650; letter-spacing:-.01em}
+/* The right answer swells once and rings. */
+@keyframes swell{0%{transform:scale(1)} 42%{transform:scale(1.035)} 100%{transform:scale(1)}}
+@keyframes ring{
+  0%{box-shadow:inset 0 0 0 1px var(--accent-line), 0 0 0 0 var(--accent-soft)}
+  70%{box-shadow:inset 0 0 0 1px var(--accent-line), 0 0 0 16px rgba(0,0,0,0)}
+  100%{box-shadow:inset 0 0 0 1px var(--accent-line), 0 0 0 0 rgba(0,0,0,0)}
+}
+.opt.right{animation:swell 420ms var(--ease-spring), ring 760ms var(--ease)}
+/* The ones you did not choose step back, nearest first. */
+.opt.dim{opacity:.4; transform:scale(.985); transition:opacity 260ms var(--ease), transform 260ms var(--ease)}
+.opt.dim:nth-child(2){transition-delay:30ms}
+.opt.dim:nth-child(3){transition-delay:60ms}
+.opt.dim:nth-child(4){transition-delay:90ms}
+
+.verdict{
+  margin-top:20px; font-size:15px; font-weight:650; letter-spacing:-.01em;
+  animation:riseIn 300ms var(--ease) both; animation-delay:120ms;
+}
 .verdict.ok{color:var(--accent)}
 .verdict.no{color:var(--neg)}
 
@@ -351,6 +399,8 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
 .scroll{max-height:48vh; overflow-y:auto; margin-top:14px; -webkit-overflow-scrolling:touch}
 
 @media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important} }
+/* Nothing above may leave an element invisible if its animation never runs. */
+@media (prefers-reduced-motion: reduce){ .screen>*,.opts .opt,.bottombar>*,.verdict{opacity:1; transform:none} }
 </style>
 </head>
 <body>
@@ -1749,16 +1799,22 @@ function rebuild() {
   for (const q of s.questions) steps.push({ k: "q", q: q });
 }
 
+let lastDone = -1;
+
 function pips() {
   const total = plan.newIds.length + plan.reviewIds.length;
-  if (!total) { pipsEl.innerHTML = ""; return; }
+  if (!total) { pipsEl.innerHTML = ""; lastDone = -1; return; }
   const left = steps.length;
+  const done = total - left;
   let h = "";
   for (let i = 0; i < total; i++) {
-    const state = i < total - left ? "done" : (i === total - left ? "now" : "");
-    h += '<i class="pip ' + state + '"></i>';
+    const state = i < done ? "done" : (i === done ? "now" : "");
+    // The pip that filled on THIS render gets the pop; the rest stay still.
+    const just = (i === done - 1 && done > lastDone) ? " just" : "";
+    h += '<i class="pip ' + state + just + '"></i>';
   }
   pipsEl.innerHTML = h;
+  lastDone = done;
 }
 
 function render() {

@@ -420,6 +420,7 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
 </div>
 
 <script>
+const BUILD = "2026-10-21 03:43 UTC";
 const VOCAB = [{"id":"sudah","word":"sudah","en":"already · done","ex":"Sudah selesai?","exEn":"Is it done already?","cat":"core","diff":1,"note":"Works alone as an answer: 'Sudah' = yes, done. You'll use this daily. Said 'udah' or just 'dah' in speech.","part":"foundation"},
 {"id":"belum","word":"belum","en":"not yet","ex":"Belum, nanti sore.","exEn":"Not yet, later this afternoon.","cat":"core","diff":1,"note":"The natural answer to any 'sudah…?' question. Never use 'tidak' for this. Said 'belom' in speech, but written belum.","part":"foundation"},
 {"id":"bisa","word":"bisa","en":"can","ex":"Bisa besok?","exEn":"Can you do it tomorrow?","cat":"core","diff":1,"part":"foundation"},
@@ -2920,7 +2921,12 @@ function settings() {
       '<div class="meta" style="margin-top:22px">Day ' + st.dayNumber + ' \u00b7 ' +
         st.introduced + ' words in progress \u00b7 ' + st.known + ' parked.<br>' +
         'A changed daily load takes effect tomorrow.</div>' +
-      '<div style="margin-top:18px"><button class="btn btn-danger btn-sm" id="reset">Reset all progress</button></div>' +
+      '<div class="meta" style="margin-top:18px">Build ' +
+        (typeof BUILD === "string" ? BUILD : "\u2014") + '</div>' +
+      '<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap">' +
+        '<button class="btn btn-ghost btn-sm" id="refresh">Force update</button>' +
+        '<button class="btn btn-danger btn-sm" id="reset">Reset all progress</button>' +
+      '</div>' +
     '</div>';
 
   act('<button class="btn btn-primary" id="back">Done</button>');
@@ -2982,6 +2988,26 @@ function settings() {
     writeSheetCreds(null);
     sheetState = "off";
     settings();
+  };
+
+  // An installed web app can get stuck on a cached copy of itself. This throws
+  // away the service worker and every cache, then reloads from the network.
+  const refresh = document.getElementById("refresh");
+  if (refresh) refresh.onclick = async function () {
+    this.disabled = true;
+    this.textContent = "Updating\u2026";
+    try {
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      if (navigator.serviceWorker) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+    } catch (e) {}
+    // Cache-busted so no layer in between can hand back the old page.
+    location.replace(location.pathname + "?v=" + Date.now());
   };
 
   document.getElementById("reset").onclick = function () {

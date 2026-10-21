@@ -1568,7 +1568,7 @@ function defaultState() {
     onboarded: false,
     settings: {
       accentPreset: "lime",
-      newWordsPerDay: 1,
+      newWordsPerDay: 1,      // fixed: one word a day is the whole method
       reviewsPerDay: 3,
       direction: "adaptive"
     },
@@ -1599,6 +1599,7 @@ function merge(into) {
   const d = defaultState();
   const s = Object.assign(d, into || {});
   s.settings = Object.assign(d.settings, (into && into.settings) || {});
+  s.settings.newWordsPerDay = 1;        // no longer a setting; one a day, always
   s.streak = Object.assign(d.streak, (into && into.streak) || {});
   s.totals = Object.assign(d.totals, (into && into.totals) || {});
   s.cards = (into && into.cards) || {};
@@ -1900,17 +1901,9 @@ function done() {
                   ' parked as already known \u00b7 ' + pct + '% of the course touched</div>' : '') +
     '</div>';
 
-  const more = canAddExtra(STATE, VOCAB, plan);
-  act((more ? '<button class="btn btn-primary" id="more">Teach me one more word</button>' : "") +
-      '<button class="btn btn-ghost btn-sm" id="words">See the words I\u2019m learning</button>' +
-      '<button class="btn btn-ghost btn-sm" id="close">Done for today</button>');
+  act('<button class="btn btn-primary" id="close">Done for today</button>' +
+      '<button class="btn btn-ghost btn-sm" id="words">See the words I\u2019m learning</button>');
   document.getElementById("words").onclick = wordsScreen;
-
-  if (more) document.getElementById("more").onclick = () => {
-    addExtraWord(STATE, plan, VOCAB, dayKey);
-    save();
-    rebuild(); render();
-  };
   document.getElementById("close").onclick = () => {
     stage.innerHTML =
       '<div class="screen">' +
@@ -2193,18 +2186,13 @@ function home() {
           (doneNow ? "Continue \u2014 " + left + " to go" : "Start today") + '</button>' +
         homeLinks());
   } else {
-    const more = canAddExtra(STATE, VOCAB, plan);
-    act((more ? '<button class="btn btn-primary" id="more">One more word</button>' : "") +
-        homeLinks());
+    // Nothing more is offered: one word a day is the point, and an "extra word"
+    // button turns a steady habit into a day you overreach and a week you skip.
+    act(homeLinks());
   }
 
   const go = document.getElementById("go");
   if (go) go.onclick = () => { atHome = false; render(); };
-  const more = document.getElementById("more");
-  if (more) more.onclick = () => {
-    addExtraWord(STATE, plan, VOCAB, dayKey);
-    save(); atHome = false; rebuild(); render();
-  };
   document.getElementById("words").onclick = wordsScreen;
   document.getElementById("prog").onclick = progressScreen;
   const prac = document.getElementById("prac");
@@ -2774,7 +2762,6 @@ function settings() {
       '</div></div>' +
 
       '<div class="label label-quiet" style="margin-top:22px">Daily load</div>' +
-      seg("New words", "newWordsPerDay", [[1, "1"], [2, "2"], [3, "3"]]) +
       seg("Reviews", "reviewsPerDay", [[1, "1"], [2, "2"], [3, "3"], [5, "5"]]) +
       seg("Asking", "direction", [["adaptive", "Auto"], ["both", "Both"],
                                   ["id_en", "ID\u2192EN"], ["en_id", "EN\u2192ID"]]) +

@@ -473,7 +473,7 @@ body.flash-miss #app{animation:shiver 260ms var(--ease)}
 </div>
 
 <script>
-const BUILD = "2026-10-21 03:59 UTC";
+const BUILD = "2026-10-21 04:02 UTC";
 const VOCAB = [{"id":"sudah","word":"sudah","en":"already · done","ex":"Sudah selesai?","exEn":"Is it done already?","cat":"core","diff":1,"note":"Works alone as an answer: 'Sudah' = yes, done. You'll use this daily. Said 'udah' or just 'dah' in speech.","part":"foundation"},
 {"id":"belum","word":"belum","en":"not yet","ex":"Belum, nanti sore.","exEn":"Not yet, later this afternoon.","cat":"core","diff":1,"note":"The natural answer to any 'sudah…?' question. Never use 'tidak' for this. Said 'belom' in speech, but written belum.","part":"foundation"},
 {"id":"bisa","word":"bisa","en":"can","ex":"Bisa besok?","exEn":"Can you do it tomorrow?","cat":"core","diff":1,"part":"foundation"},
@@ -2895,17 +2895,42 @@ function renderPractice() {
       opts[q.answerIdx].classList.add("right");
     }
 
-    // Counted for the record, never for the schedule.
     if (ok) practice.right++; else practice.wrong++;
     STATE.totals.practiceAnswers = (STATE.totals.practiceAnswers || 0) + 1;
     if (ok) STATE.totals.practiceCorrect = (STATE.totals.practiceCorrect || 0) + 1;
+
+    // Practice COUNTS. Getting a word right here is the same evidence as
+    // getting it right in a review, so it moves the three-in-a-row tally and
+    // can graduate a word onto the written cards.
+    //
+    // What it cannot do is push the same word's next date forward again and
+    // again: the interval is earned once a day, however many rounds you do.
+    // Otherwise one keen evening would fling half your vocabulary six months
+    // into the future.
+    const card = STATE.cards[q.id];
+    const phaseBefore = card && card.phase;
+    if (card) {
+      const earnedToday = card.last === dayKey;
+      const keepNext = card.next;
+      grade(card, ok, dayKey, q.dir, q.fmt);
+      if (earnedToday) card.next = keepNext;
+    }
     save();
 
     stage.insertAdjacentHTML("beforeend",
       '<div class="verdict ' + (ok ? "ok" : "no") + '">' +
       (ok ? "Correct" : 'Not quite \u2014 <b class="hl">' + esc(q.word) + '</b> is ' + esc(q.en)) +
       '</div>');
-    if (!ok) flash("miss");
+
+    if (ok && graduatedJustNow(q.id, phaseBefore)) {
+      cheer({ big: true, dots: dots(3, 3), text: "3 of 3 \u00b7 written cards from here" });
+      flash("win");
+    } else if (ok) {
+      cheer(cheerFor(q.id));
+    } else {
+      cheer(cheerMiss(q.id));
+      flash("miss");
+    }
     act('<button class="btn btn-primary" id="pnext">Continue</button>');
     document.getElementById("pnext").onclick = () => { practice.i++; renderPractice(); };
   });
@@ -2921,8 +2946,8 @@ function practiceDone() {
       '<div class="label">Practice done</div>' +
       '<div class="hero">' + pct + '%</div>' +
       '<div class="gloss">' + practice.right + ' of ' + total + ' both ways</div>' +
-      '<div class="meta" style="margin-top:22px">Practice does not move any word\u2019s ' +
-        'schedule \u2014 those intervals stay earned.</div>' +
+      '<div class="meta" style="margin-top:22px">Practice counts towards three in a row. ' +
+        'A word\u2019s next date still only moves once a day, however many rounds you do.</div>' +
     '</div>';
   act('<button class="btn btn-primary" id="again">Practice again</button>' +
       '<button class="btn btn-ghost btn-sm" id="pdone">Back</button>');

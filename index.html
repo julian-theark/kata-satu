@@ -185,13 +185,8 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
 .opt.shake{animation:nudge .4s var(--ease)}
 
 /* The right answer swells once and rings. */
-@keyframes swell{0%{transform:scale(1)} 42%{transform:scale(1.035)} 100%{transform:scale(1)}}
-@keyframes ring{
-  0%{box-shadow:inset 0 0 0 1px var(--accent-line), 0 0 0 0 var(--accent-soft)}
-  70%{box-shadow:inset 0 0 0 1px var(--accent-line), 0 0 0 16px rgba(0,0,0,0)}
-  100%{box-shadow:inset 0 0 0 1px var(--accent-line), 0 0 0 0 rgba(0,0,0,0)}
-}
-.opt.right{animation:swell 420ms var(--ease-spring), ring 760ms var(--ease)}
+@keyframes swell{0%{transform:scale(1)} 40%{transform:scale(1.025)} 100%{transform:scale(1)}}
+.opt.right{animation:swell 380ms var(--ease-spring)}
 /* The ones you did not choose step back, nearest first. */
 .opt.dim{opacity:.4; transform:scale(.985); transition:opacity 260ms var(--ease), transform 260ms var(--ease)}
 .opt.dim:nth-child(2){transition-delay:30ms}
@@ -271,66 +266,67 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
 .badges{display:flex; flex-wrap:wrap; gap:7px; margin-top:22px}
 
 /* A milestone lights the whole screen for half a second. */
-@keyframes winGlow{
-  0%{box-shadow:inset 0 0 0 0 var(--accent-soft)}
-  25%{box-shadow:inset 0 0 90px 0 var(--accent-soft)}
-  100%{box-shadow:inset 0 0 0 0 rgba(0,0,0,0)}
-}
-@keyframes missGlow{
-  0%{box-shadow:inset 0 0 0 0 var(--neg-soft)}
-  25%{box-shadow:inset 0 0 70px 0 var(--neg-soft)}
-  100%{box-shadow:inset 0 0 0 0 rgba(0,0,0,0)}
-}
+/* A milestone washes the screen once, in opacity — no shadow spread to repaint. */
+@keyframes winWash{0%{opacity:0} 22%{opacity:.5} 100%{opacity:0}}
 @keyframes shiver{
-  0%{transform:translateX(0)} 25%{transform:translateX(-3px)}
-  60%{transform:translateX(3px)} 100%{transform:translateX(0)}
+  0%{transform:translateX(0)} 30%{transform:translateX(-2px)}
+  65%{transform:translateX(2px)} 100%{transform:translateX(0)}
 }
-body.flash-win::after,body.flash-miss::after{
+body.flash-win::after{
   content:""; position:fixed; inset:0; pointer-events:none; z-index:80;
+  background:radial-gradient(60% 40% at 50% 60%, var(--accent-soft), transparent 70%);
+  animation:winWash 620ms var(--ease);
 }
-body.flash-win::after{animation:winGlow 640ms var(--ease)}
-body.flash-miss::after{animation:missGlow 520ms var(--ease)}
-body.flash-miss #app{animation:shiver 260ms var(--ease)}
+body.flash-miss #app{animation:shiver 220ms var(--ease)}
 
 /* the moment a word moves forward */
 @keyframes cheerIn{
-  0%{opacity:0; transform:translateY(14px) scale(.8) rotate(-2deg)}
-  55%{opacity:1; transform:translateY(-3px) scale(1.07) rotate(1deg)}
-  78%{transform:translateY(0) scale(.99) rotate(0)}
-  100%{opacity:1; transform:none}
-}
-@keyframes cheerGlow{
-  0%{box-shadow:0 0 0 0 var(--accent-soft)}
-  70%{box-shadow:0 0 0 14px rgba(0,0,0,0)}
-  100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}
+  from{opacity:0; transform:translateY(4px)}
+  to{opacity:1; transform:none}
 }
 .cheer{
   display:inline-flex; align-items:center; gap:7px; margin-top:14px;
   padding:9px 15px; border-radius:var(--r-pill);
   background:var(--accent-soft); color:var(--accent);
   font-size:13.5px; font-weight:650; letter-spacing:-.01em;
-  animation:cheerIn 560ms var(--ease-spring) both, cheerGlow 1000ms var(--ease) 160ms;
+  animation:cheerIn 180ms var(--ease) both;
 }
 .cheer b{font-weight:800}
-.cdots{display:inline-flex; gap:5px; align-items:center}
+.cdots{display:inline-flex; gap:6px; align-items:center}
 .cdot{
-  width:8px; height:8px; border-radius:var(--r-pill);
-  background:currentColor; opacity:.22;
-  animation:cdotIn 360ms var(--ease-spring) both;
+  position:relative; width:9px; height:9px; border-radius:var(--r-pill);
+  background:currentColor; opacity:.2;
 }
 .cdot.on{opacity:1}
-.cdot:nth-child(2){animation-delay:70ms}
-.cdot:nth-child(3){animation-delay:140ms}
-@keyframes cdotIn{from{transform:scale(.3)} to{transform:scale(1)}}
+
+/* Only the dot earned by this answer moves: it lands with a spring and throws
+   one ring. Transform and opacity only, so it stays on the compositor. */
+@keyframes dotLand{
+  0%{transform:scale(.2)}
+  55%{transform:scale(1.42)}
+  78%{transform:scale(.94)}
+  100%{transform:scale(1)}
+}
+@keyframes dotRing{
+  0%{transform:scale(.6); opacity:.55}
+  100%{transform:scale(3.4); opacity:0}
+}
+.cdot.fresh{animation:dotLand 540ms var(--ease-spring) both}
+.cdot.fresh::after{
+  content:""; position:absolute; inset:0; border-radius:inherit;
+  background:currentColor; animation:dotRing 620ms var(--ease) both;
+}
+/* A miss empties them, left to right. */
+@keyframes dotDrain{from{transform:scale(1.25); opacity:.9} to{transform:scale(1); opacity:.2}}
+.cheer.miss .cdot{animation:dotDrain 320ms var(--ease) both}
+.cheer.miss .cdot:nth-child(2){animation-delay:60ms}
+.cheer.miss .cdot:nth-child(3){animation-delay:120ms}
 .cheer.miss{background:var(--neg-soft); color:var(--neg)}
 .cheer.big .cdot{background:currentColor}
-@keyframes bigBeat{
-  0%,100%{transform:scale(1)} 40%{transform:scale(1.06)} 70%{transform:scale(.985)}
-}
 .cheer.big{
   background:var(--accent); color:var(--accent-ink);
   font-size:15px; padding:13px 19px;
-  animation:cheerIn 560ms var(--ease-spring) both, bigBeat 900ms var(--ease) 520ms;
+  animation:cheerIn 180ms var(--ease) both;
 }
 @media (prefers-reduced-motion: reduce){ .cheer{animation:none} }
 
@@ -473,7 +469,7 @@ body.flash-miss #app{animation:shiver 260ms var(--ease)}
 </div>
 
 <script>
-const BUILD = "2026-10-21 04:02 UTC";
+const BUILD = "2026-10-21 04:11 UTC";
 const VOCAB = [{"id":"sudah","word":"sudah","en":"already · done","ex":"Sudah selesai?","exEn":"Is it done already?","cat":"core","diff":1,"note":"Works alone as an answer: 'Sudah' = yes, done. You'll use this daily. Said 'udah' or just 'dah' in speech.","part":"foundation"},
 {"id":"belum","word":"belum","en":"not yet","ex":"Belum, nanti sore.","exEn":"Not yet, later this afternoon.","cat":"core","diff":1,"note":"The natural answer to any 'sudah…?' question. Never use 'tidak' for this. Said 'belom' in speech, but written belum.","part":"foundation"},
 {"id":"bisa","word":"bisa","en":"can","ex":"Bisa besok?","exEn":"Can you do it tomorrow?","cat":"core","diff":1,"part":"foundation"},
@@ -2067,10 +2063,14 @@ function cheerFor(id) {
 // is shown as a count rather than described in words.
 const MC_TO_CARD_UI = 3;
 
-function dots(filled, total) {
+// `fresh` is the dot earned by THIS answer. It is the only thing that moves:
+// the badge itself just appears, because a label that leaps about is harder to
+// read than the thing it is labelling.
+function dots(filled, total, fresh) {
+  const live = fresh === undefined ? filled - 1 : fresh;
   let h = "";
   for (let i = 0; i < total; i++)
-    h += '<i class="cdot' + (i < filled ? " on" : "") + '"></i>';
+    h += '<i class="cdot' + (i < filled ? " on" : "") + (i === live ? " fresh" : "") + '"></i>';
   return '<span class="cdots">' + h + '</span>';
 }
 
@@ -2085,7 +2085,7 @@ function cheerMiss(id) {
   const c = STATE.cards[id];
   if (!c || c.known) return null;
   if (c.phase === "card") return null;
-  return { miss: true, dots: dots(0, MC_TO_CARD_UI), text: "Back to 0 of " + MC_TO_CARD_UI };
+  return { miss: true, dots: dots(0, MC_TO_CARD_UI, -1), text: "Back to 0 of " + MC_TO_CARD_UI };
 }
 
 function cheer(c) {

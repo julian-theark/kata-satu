@@ -110,13 +110,13 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
    that you feel it rather than watch it: 34ms apart, done inside a fifth of a
    second, and every element ends where it would have been anyway. */
 @keyframes riseIn{from{opacity:0; transform:translateY(9px)} to{opacity:1; transform:none}}
-.screen>*{animation:riseIn 300ms var(--ease) both}
+.screen>*{animation:riseIn 240ms var(--ease) both}
 .screen>*:nth-child(1){animation-delay:0ms}
-.screen>*:nth-child(2){animation-delay:34ms}
-.screen>*:nth-child(3){animation-delay:68ms}
-.screen>*:nth-child(4){animation-delay:102ms}
-.screen>*:nth-child(5){animation-delay:136ms}
-.screen>*:nth-child(n+6){animation-delay:170ms}
+.screen>*:nth-child(2){animation-delay:22ms}
+.screen>*:nth-child(3){animation-delay:44ms}
+.screen>*:nth-child(4){animation-delay:66ms}
+.screen>*:nth-child(5){animation-delay:88ms}
+.screen>*:nth-child(n+6){animation-delay:105ms}
 
 /* The action bar comes up with them. */
 @keyframes barIn{from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:none}}
@@ -126,6 +126,12 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
 .label{font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--accent)}
 .label-quiet{color:var(--text-3)}
 .hero{font-size:46px; font-weight:780; letter-spacing:-.042em; line-height:1; text-wrap:balance}
+@keyframes heroIn{
+  0%{opacity:0; transform:translateY(16px) scale(.94)}
+  70%{opacity:1; transform:translateY(0) scale(1.012)}
+  100%{opacity:1; transform:none}
+}
+.hero{animation:heroIn 560ms var(--ease-spring) both}
 .title{font-size:20px; font-weight:700; letter-spacing:-.022em}
 .ask{font-size:27px; font-weight:760; letter-spacing:-.03em; line-height:1.15; text-wrap:balance}
 .ask em{font-style:normal; color:var(--accent)}
@@ -152,11 +158,11 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
 /* answers */
 .opts{display:flex; flex-direction:column; gap:10px; margin-top:22px}
 /* The options deal themselves out, top to bottom. */
-.opts .opt{animation:riseIn 280ms var(--ease) both}
-.opts .opt:nth-child(1){animation-delay:40ms}
-.opts .opt:nth-child(2){animation-delay:85ms}
-.opts .opt:nth-child(3){animation-delay:130ms}
-.opts .opt:nth-child(4){animation-delay:175ms}
+.opts .opt{animation:riseIn 240ms var(--ease-spring) both}
+.opts .opt:nth-child(1){animation-delay:30ms}
+.opts .opt:nth-child(2){animation-delay:62ms}
+.opts .opt:nth-child(3){animation-delay:94ms}
+.opts .opt:nth-child(4){animation-delay:126ms}
 .opt{
   width:100%; text-align:left; display:flex; align-items:center; gap:10px;
   background:var(--surface); border-radius:var(--r); padding:17px 18px;
@@ -201,7 +207,14 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
 
 /* stats */
 .tiles{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:20px}
-.tile{background:var(--surface); border-radius:var(--r); padding:18px; min-height:104px; display:flex; flex-direction:column; justify-content:space-between}
+.tile{
+  background:var(--surface); border-radius:var(--r); padding:18px; min-height:104px;
+  display:flex; flex-direction:column; justify-content:space-between;
+  animation:riseIn 420ms var(--ease-spring) both;
+}
+.tiles .tile:nth-child(2){animation-delay:60ms}
+.tiles .tile:nth-child(3){animation-delay:120ms}
+.tiles .tile:nth-child(4){animation-delay:180ms}
 .tile-num{font-size:34px; font-weight:760; letter-spacing:-.04em; line-height:1}
 .tile-num small{font-size:14px; font-weight:600; color:var(--text-3); letter-spacing:-.01em}
 .tile-label{font-size:13px; font-weight:600; color:var(--text-2); letter-spacing:-.01em}
@@ -257,10 +270,36 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
 
 .badges{display:flex; flex-wrap:wrap; gap:7px; margin-top:22px}
 
+/* particles, and the room they live in */
+.fx{position:fixed; inset:0; pointer-events:none; z-index:90}
+
+/* A milestone lights the whole screen for half a second. */
+@keyframes winGlow{
+  0%{box-shadow:inset 0 0 0 0 var(--accent-soft)}
+  25%{box-shadow:inset 0 0 90px 0 var(--accent-soft)}
+  100%{box-shadow:inset 0 0 0 0 rgba(0,0,0,0)}
+}
+@keyframes missGlow{
+  0%{box-shadow:inset 0 0 0 0 var(--neg-soft)}
+  25%{box-shadow:inset 0 0 70px 0 var(--neg-soft)}
+  100%{box-shadow:inset 0 0 0 0 rgba(0,0,0,0)}
+}
+@keyframes shiver{
+  0%{transform:translateX(0)} 25%{transform:translateX(-3px)}
+  60%{transform:translateX(3px)} 100%{transform:translateX(0)}
+}
+body.flash-win::after,body.flash-miss::after{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:80;
+}
+body.flash-win::after{animation:winGlow 640ms var(--ease)}
+body.flash-miss::after{animation:missGlow 520ms var(--ease)}
+body.flash-miss #app{animation:shiver 260ms var(--ease)}
+
 /* the moment a word moves forward */
 @keyframes cheerIn{
-  0%{opacity:0; transform:translateY(10px) scale(.86)}
-  60%{opacity:1; transform:translateY(0) scale(1.04)}
+  0%{opacity:0; transform:translateY(14px) scale(.8) rotate(-2deg)}
+  55%{opacity:1; transform:translateY(-3px) scale(1.07) rotate(1deg)}
+  78%{transform:translateY(0) scale(.99) rotate(0)}
   100%{opacity:1; transform:none}
 }
 @keyframes cheerGlow{
@@ -273,12 +312,28 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
   padding:9px 15px; border-radius:var(--r-pill);
   background:var(--accent-soft); color:var(--accent);
   font-size:13.5px; font-weight:650; letter-spacing:-.01em;
-  animation:cheerIn 520ms var(--ease-spring) both, cheerGlow 900ms var(--ease) 180ms;
+  animation:cheerIn 560ms var(--ease-spring) both, cheerGlow 1000ms var(--ease) 160ms;
 }
 .cheer b{font-weight:800}
+.cdots{display:inline-flex; gap:5px; align-items:center}
+.cdot{
+  width:8px; height:8px; border-radius:var(--r-pill);
+  background:currentColor; opacity:.22;
+  animation:cdotIn 360ms var(--ease-spring) both;
+}
+.cdot.on{opacity:1}
+.cdot:nth-child(2){animation-delay:70ms}
+.cdot:nth-child(3){animation-delay:140ms}
+@keyframes cdotIn{from{transform:scale(.3)} to{transform:scale(1)}}
+.cheer.miss{background:var(--neg-soft); color:var(--neg)}
+.cheer.big .cdot{background:currentColor}
+@keyframes bigBeat{
+  0%,100%{transform:scale(1)} 40%{transform:scale(1.06)} 70%{transform:scale(.985)}
+}
 .cheer.big{
   background:var(--accent); color:var(--accent-ink);
-  font-size:15px; padding:12px 18px;
+  font-size:15px; padding:13px 19px;
+  animation:cheerIn 560ms var(--ease-spring) both, bigBeat 900ms var(--ease) 520ms;
 }
 @media (prefers-reduced-motion: reduce){ .cheer{animation:none} }
 
@@ -289,7 +344,8 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
   transition:transform 620ms var(--ease-spring);
   height:186px;
 }
-.flip.turned .flip-in{transform:rotateY(180deg)}
+.flip.turned .flip-in{transform:rotateY(180deg) translateZ(14px)}
+.flip-in{will-change:transform}
 .face{
   position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden;
   background:var(--surface); border-radius:var(--r-lg); padding:22px;
@@ -420,7 +476,7 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
 </div>
 
 <script>
-const BUILD = "2026-10-21 03:43 UTC";
+const BUILD = "2026-10-21 03:53 UTC";
 const VOCAB = [{"id":"sudah","word":"sudah","en":"already · done","ex":"Sudah selesai?","exEn":"Is it done already?","cat":"core","diff":1,"note":"Works alone as an answer: 'Sudah' = yes, done. You'll use this daily. Said 'udah' or just 'dah' in speech.","part":"foundation"},
 {"id":"belum","word":"belum","en":"not yet","ex":"Belum, nanti sore.","exEn":"Not yet, later this afternoon.","cat":"core","diff":1,"note":"The natural answer to any 'sudah…?' question. Never use 'tidak' for this. Said 'belom' in speech, but written belum.","part":"foundation"},
 {"id":"bisa","word":"bisa","en":"can","ex":"Bisa besok?","exEn":"Can you do it tomorrow?","cat":"core","diff":1,"part":"foundation"},
@@ -1880,9 +1936,9 @@ function question(q) {
       if (redo) delete plan.answered[q.id];       // the override replaces the mark
       recordAnswer(STATE, plan, dayKey, q.id, ok, q.dir, q.fmt, q.distractorIds);
       save();
-      if (!ok) return null;
+      if (!ok) return cheerMiss(q.id);
       if (graduatedJustNow(q.id, before))
-        return { text: "Three in a row \u00b7 <b>written cards from here</b>", big: true };
+        return { big: true, dots: dots(3, 3), text: "3 of 3 \u00b7 written cards from here" };
       return cheerFor(q.id);
     },
     ok => {
@@ -1961,13 +2017,17 @@ function judge(q, ok) {
       (ok ? "Correct" : "Not quite — " + esc(q.word) + " is " + esc(q.en)) + '</div>' + extra;
   stage.insertAdjacentHTML("beforeend", body);
 
-  if (ok) {
-    if (graduatedJustNow(q.id, phaseBefore))
-      cheer("Three in a row \u00b7 <b>written cards from here</b>", true);
-    else {
-      const c = cheerFor(q.id);
-      if (c) cheer(c.text, c.big);
-    }
+  const hit = stage.querySelector(".opt.right") || stage.querySelector(".ask");
+  if (ok && graduatedJustNow(q.id, phaseBefore)) {
+    cheer({ big: true, dots: dots(3, 3), text: "3 of 3 \u00b7 written cards from here" });
+    burstFrom(hit, 3); flash("win");
+  } else if (ok) {
+    const c = cheerFor(q.id);
+    cheer(c);
+    burstFrom(hit, Math.min(2, (STATE.cards[q.id] || {}).mcRight || 1));
+  } else {
+    cheer(cheerMiss(q.id));
+    flash("miss");
   }
 
   act('<button class="btn btn-primary" id="next">Continue</button>');
@@ -1990,15 +2050,34 @@ function cheerFor(id) {
 
   if (c.phase === "card") {
     const step = c.cardStep || 0;
-    if (c.cardMiss) return null;
-    if (isMastered(c)) return { big: true, text: "Mastered \u00b7 back in six months" };
-    return { text: step === 0 ? "Back in ten days" : "Written \u00b7 back in a month" };
+    if (c.cardMiss) return { dots: dots(0, 3), text: "Written \u00b7 back tomorrow" };
+    if (isMastered(c))
+      return { big: true, dots: dots(3, 3), text: "Nailed it \u00b7 back in six months" };
+    return {
+      dots: dots(step + 1, 3),
+      text: step === 0 ? "Written 1 of 3 \u00b7 back in ten days"
+                       : "Written 2 of 3 \u00b7 back in a month"
+    };
   }
 
   const n = c.mcRight || 0;
-  if (n === 1) return { text: "First time right" };
-  if (n === 2) return { text: "Twice in a row" };
-  return null;
+  if (n <= 0) return null;
+  return {
+    dots: dots(n, MC_TO_CARD_UI),
+    text: n + " of " + MC_TO_CARD_UI + " right in a row" +
+          (n === MC_TO_CARD_UI - 1 ? " \u00b7 one more and it is yours" : "")
+  };
+}
+
+// The three-in-a-row goal, drawn. The whole scheme hangs on this number, so it
+// is shown as a count rather than described in words.
+const MC_TO_CARD_UI = 3;
+
+function dots(filled, total) {
+  let h = "";
+  for (let i = 0; i < total; i++)
+    h += '<i class="cdot' + (i < filled ? " on" : "") + '"></i>';
+  return '<span class="cdots">' + h + '</span>';
 }
 
 // Graduation gets its own beat, because the word genuinely changes track.
@@ -2007,9 +2086,19 @@ function graduatedJustNow(id, before) {
   return c && before === "mc" && c.phase === "card";
 }
 
-function cheer(html, big) {
+// A missed answer says what it cost, instead of leaving you to work it out.
+function cheerMiss(id) {
+  const c = STATE.cards[id];
+  if (!c || c.known) return null;
+  if (c.phase === "card") return null;
+  return { miss: true, dots: dots(0, MC_TO_CARD_UI), text: "Back to 0 of " + MC_TO_CARD_UI };
+}
+
+function cheer(c) {
+  if (!c) return;
   stage.insertAdjacentHTML("beforeend",
-    '<div class="cheer' + (big ? " big" : "") + '">' + html + '</div>');
+    '<div class="cheer' + (c.big ? " big" : "") + (c.miss ? " miss" : "") + '">' +
+      (c.dots || "") + '<span>' + c.text + '</span></div>');
 }
 
 // ── finished ─────────────────────────────────────────────────────────────────
@@ -2037,6 +2126,14 @@ function done() {
   act('<button class="btn btn-primary" id="close">Done for today</button>' +
       '<button class="btn btn-ghost btn-sm" id="words">See the words I\u2019m learning</button>');
   document.getElementById("words").onclick = wordsScreen;
+  if (!done.celebrated) {
+    done.celebrated = dayKey;
+    setTimeout(() => {
+      const el = stage.querySelector(".streak") || stage.querySelector(".label");
+      burstFrom(el, 3);
+    }, 220);
+  }
+
   document.getElementById("close").onclick = () => {
     stage.innerHTML =
       '<div class="screen">' +
@@ -2515,6 +2612,112 @@ const MNEMONIC_SEEDS = {
   besok:    "BAY-sok — tomorrow, put on a fresh sock."
 };
 
+// ── fx ───────────────────────────────────────────────────────────────────────
+// One canvas, reused, sitting above everything and ignoring pointers. Particles
+// are plain physics — spawn with a velocity, add gravity, fade — and the loop
+// stops itself the moment the last one dies, so nothing runs in the background.
+let fxCanvas = null, fxCtx = null, fxBits = [], fxRunning = false;
+
+function fxReady() {
+  if (fxCanvas) return true;
+  try {
+    fxCanvas = document.createElement("canvas");
+    fxCanvas.className = "fx";
+    document.body.appendChild(fxCanvas);
+    fxCtx = fxCanvas.getContext("2d");
+    const size = () => {
+      const r = window.devicePixelRatio || 1;
+      fxCanvas.width = innerWidth * r;
+      fxCanvas.height = innerHeight * r;
+      fxCanvas.style.width = innerWidth + "px";
+      fxCanvas.style.height = innerHeight + "px";
+      fxCtx.setTransform(r, 0, 0, r, 0, 0);
+    };
+    size();
+    addEventListener("resize", size);
+    return true;
+  } catch (e) { return false; }
+}
+
+function reduceMotion() {
+  try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; }
+}
+
+function accentNow() {
+  const a = ACCENTS[STATE.settings.accentPreset] || ACCENTS.lime;
+  return a.base;
+}
+
+// `strength` 1-3: a small spark for the first right answer, a proper shower for
+// the third, when the word changes track.
+function burst(x, y, strength) {
+  if (reduceMotion() || !fxReady()) return;
+  const n = [0, 16, 26, 54][Math.min(3, strength)] || 16;
+  const colour = accentNow();
+  const spread = 2.1 + strength * 0.5;
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = (1.6 + Math.random() * 4.4) * spread;
+    fxBits.push({
+      x: x, y: y,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp - 3.2,
+      g: 0.26 + Math.random() * 0.12,
+      r: 2 + Math.random() * (2 + strength),
+      life: 1,
+      decay: 0.012 + Math.random() * 0.012,
+      spin: (Math.random() - 0.5) * 0.4,
+      rot: Math.random() * Math.PI,
+      colour: i % 5 === 0 ? "#FFFFFF" : colour,
+      square: i % 3 === 0
+    });
+  }
+  if (!fxRunning) { fxRunning = true; requestAnimationFrame(fxTick); }
+}
+
+function fxTick() {
+  if (!fxCtx) { fxRunning = false; return; }
+  fxCtx.clearRect(0, 0, innerWidth, innerHeight);
+
+  for (let i = fxBits.length - 1; i >= 0; i--) {
+    const b = fxBits[i];
+    b.vy += b.g;
+    b.vx *= 0.99;
+    b.x += b.vx;
+    b.y += b.vy;
+    b.rot += b.spin;
+    b.life -= b.decay;
+    if (b.life <= 0 || b.y > innerHeight + 40) { fxBits.splice(i, 1); continue; }
+
+    fxCtx.save();
+    fxCtx.globalAlpha = Math.max(0, Math.min(1, b.life));
+    fxCtx.translate(b.x, b.y);
+    fxCtx.rotate(b.rot);
+    fxCtx.fillStyle = b.colour;
+    if (b.square) fxCtx.fillRect(-b.r, -b.r * 0.6, b.r * 2, b.r * 1.2);
+    else { fxCtx.beginPath(); fxCtx.arc(0, 0, b.r, 0, Math.PI * 2); fxCtx.fill(); }
+    fxCtx.restore();
+  }
+
+  if (fxBits.length) requestAnimationFrame(fxTick);
+  else { fxRunning = false; fxCtx.clearRect(0, 0, innerWidth, innerHeight); }
+}
+
+function burstFrom(el, strength) {
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  burst(r.left + r.width / 2, r.top + r.height / 2, strength);
+}
+
+// A milestone worth more than particles: the whole screen takes a breath.
+function flash(kind) {
+  if (reduceMotion()) return;
+  document.body.classList.remove("flash-win", "flash-miss");
+  void document.body.offsetWidth;                    // restart the animation
+  document.body.classList.add(kind === "miss" ? "flash-miss" : "flash-win");
+  setTimeout(() => document.body.classList.remove("flash-win", "flash-miss"), 700);
+}
+
 // ── typed cards ──────────────────────────────────────────────────────────────
 // A word that has survived multiple choice is tested by hand: the prompt on the
 // front, your answer typed, then the card turns and shows the back. Typing is a
@@ -2615,7 +2818,12 @@ function cardScreen(q, onGrade, onNext) {
     // result, and a screen that is about to be replaced cannot show one.
     let graded = ok;
     const badge = onGrade(ok);
-    if (badge) cheer(badge.text, badge.big);
+    cheer(badge);
+    if (ok) {
+      const big = badge && badge.big;
+      burstFrom(document.getElementById("flip"), big ? 3 : 2);
+      if (big) flash("win");
+    } else flash("miss");
 
     act('<button class="btn btn-primary" id="cnext">Continue</button>' +
         (ok ? "" : '<button class="btn btn-ghost btn-sm" id="iknew">I had it right</button>'));
@@ -2627,7 +2835,8 @@ function cardScreen(q, onGrade, onNext) {
     if (iknew) iknew.onclick = () => {
       graded = true;
       const again = onGrade(true, true);          // re-grade as correct
-      if (again) cheer(again.text, again.big);
+      stage.querySelectorAll(".cheer").forEach(el => el.remove());
+      cheer(again);
       iknew.remove();
       msg.innerHTML = '<span class="verdict ok">Counted as right</span>';
     };
@@ -2803,6 +3012,7 @@ function renderPractice() {
       '<div class="verdict ' + (ok ? "ok" : "no") + '">' +
       (ok ? "Correct" : 'Not quite \u2014 <b class="hl">' + esc(q.word) + '</b> is ' + esc(q.en)) +
       '</div>');
+    if (ok) burstFrom(b, 1); else flash("miss");
     act('<button class="btn btn-primary" id="pnext">Continue</button>');
     document.getElementById("pnext").onclick = () => { practice.i++; renderPractice(); };
   });

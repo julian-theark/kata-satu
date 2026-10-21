@@ -209,6 +209,31 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
 
 .badges{display:flex; flex-wrap:wrap; gap:7px; margin-top:22px}
 
+/* the moment a word moves forward */
+@keyframes cheerIn{
+  0%{opacity:0; transform:translateY(10px) scale(.86)}
+  60%{opacity:1; transform:translateY(0) scale(1.04)}
+  100%{opacity:1; transform:none}
+}
+@keyframes cheerGlow{
+  0%{box-shadow:0 0 0 0 var(--accent-soft)}
+  70%{box-shadow:0 0 0 14px rgba(0,0,0,0)}
+  100%{box-shadow:0 0 0 0 rgba(0,0,0,0)}
+}
+.cheer{
+  display:inline-flex; align-items:center; gap:7px; margin-top:14px;
+  padding:9px 15px; border-radius:var(--r-pill);
+  background:var(--accent-soft); color:var(--accent);
+  font-size:13.5px; font-weight:650; letter-spacing:-.01em;
+  animation:cheerIn 520ms var(--ease-spring) both, cheerGlow 900ms var(--ease) 180ms;
+}
+.cheer b{font-weight:800}
+.cheer.big{
+  background:var(--accent); color:var(--accent-ink);
+  font-size:15px; padding:12px 18px;
+}
+@media (prefers-reduced-motion: reduce){ .cheer{animation:none} }
+
 /* the flip card */
 .flip{perspective:1000px; margin-top:18px}
 .flip-in{
@@ -1792,13 +1817,22 @@ function question(q) {
   // A word that has graduated out of multiple choice is typed, not picked. The
   // card has already shown the answer on its back, so it records the result and
   // moves on rather than printing a second verdict under the first.
-  if (q.fmt === "card") return cardScreen(q, ok => {
-    recordAnswer(STATE, plan, dayKey, q.id, ok, q.dir, q.fmt, q.distractorIds);
-    save();
-    if (!ok && needsMnemonic(q.id))
-      return mnemonicScreen(q.id, () => { rebuild(); render(); });
-    rebuild(); render();
-  });
+  if (q.fmt === "card") return cardScreen(q,
+    (ok, redo) => {
+      const before = (STATE.cards[q.id] || {}).phase;
+      if (redo) delete plan.answered[q.id];       // the override replaces the mark
+      recordAnswer(STATE, plan, dayKey, q.id, ok, q.dir, q.fmt, q.distractorIds);
+      save();
+      if (!ok) return null;
+      if (graduatedJustNow(q.id, before))
+        return { text: "Three in a row \u00b7 <b>written cards from here</b>", big: true };
+      return cheerFor(q.id);
+    },
+    ok => {
+      if (!ok && needsMnemonic(q.id))
+        return mnemonicScreen(q.id, () => { rebuild(); render(); });
+      rebuild(); render();
+    });
 
   if (q.fmt === "mc") {
     stage.innerHTML =
@@ -1861,6 +1895,7 @@ function question(q) {
 }
 
 function judge(q, ok) {
+  const phaseBefore = (STATE.cards[q.id] || {}).phase;
   recordAnswer(STATE, plan, dayKey, q.id, ok, q.dir, q.fmt, q.distractorIds);
   save();
   const extra = (!ok && q.note) ? '<div class="note">' + esc(q.note) + '</div>' : '';
@@ -1868,6 +1903,16 @@ function judge(q, ok) {
     '<div class="verdict ' + (ok ? "ok" : "no") + '">' +
       (ok ? "Correct" : "Not quite — " + esc(q.word) + " is " + esc(q.en)) + '</div>' + extra;
   stage.insertAdjacentHTML("beforeend", body);
+
+  if (ok) {
+    if (graduatedJustNow(q.id, phaseBefore))
+      cheer("Three in a row \u00b7 <b>written cards from here</b>", true);
+    else {
+      const c = cheerFor(q.id);
+      if (c) cheer(c.text, c.big);
+    }
+  }
+
   act('<button class="btn btn-primary" id="next">Continue</button>');
   const next = document.getElementById("next");
   next.onclick = () => {
@@ -1877,6 +1922,37 @@ function judge(q, ok) {
     rebuild(); render();
   };
   setTimeout(() => { try { next.focus({ preventScroll: true }); } catch (e) {} }, 60);
+}
+
+// A correct answer should feel like it counted. The milestone is real — one,
+// two, three in a row is exactly what moves a word onto the written cards — so
+// the badge names the actual progress rather than just cheering.
+function cheerFor(id) {
+  const c = STATE.cards[id];
+  if (!c || c.known) return null;
+
+  if (c.phase === "card") {
+    const step = c.cardStep || 0;
+    if (c.cardMiss) return null;
+    if (isMastered(c)) return { big: true, text: "Mastered \u00b7 back in six months" };
+    return { text: step === 0 ? "Back in ten days" : "Written \u00b7 back in a month" };
+  }
+
+  const n = c.mcRight || 0;
+  if (n === 1) return { text: "First time right" };
+  if (n === 2) return { text: "Twice in a row" };
+  return null;
+}
+
+// Graduation gets its own beat, because the word genuinely changes track.
+function graduatedJustNow(id, before) {
+  const c = STATE.cards[id];
+  return c && before === "mc" && c.phase === "card";
+}
+
+function cheer(html, big) {
+  stage.insertAdjacentHTML("beforeend",
+    '<div class="cheer' + (big ? " big" : "") + '">' + html + '</div>');
 }
 
 // ── finished ─────────────────────────────────────────────────────────────────
@@ -2404,7 +2480,10 @@ function normAnswer(t) {
 
 function acceptableAnswers(q) {
   const raw = q.dir === "id_en" ? q.en : q.word;
-  return raw.split(/[·,;/]| or /).map(normAnswer).filter(Boolean);
+  // Any one sense counts — and so does the whole gloss as printed on the card's
+  // back, which is what someone copying the card would naturally type.
+  const parts = raw.split(/[·,;/]| or /).map(normAnswer);
+  return parts.concat([normAnswer(raw)]).filter(Boolean);
 }
 
 // One typo in a longer word should not count as not knowing it.
@@ -2432,7 +2511,7 @@ function markTyped(q, typed) {
   return "wrong";
 }
 
-function cardScreen(q, onDone) {
+function cardScreen(q, onGrade, onNext) {
   const prompt = q.dir === "id_en" ? q.word : q.en;
   const answer = q.dir === "id_en" ? q.en : q.word;
   const mem = STATE.mnemonics && STATE.mnemonics[q.id];
@@ -2475,13 +2554,26 @@ function cardScreen(q, onDone) {
       : verdict === "close" ? '<span class="verdict ok">Close enough \u2014 ' + esc(answer) + '</span>'
       : '<span class="verdict no">Not quite \u2014 ' + esc(answer) + '</span>';
 
+    // Graded here, not after Continue: the badge has to appear beside the
+    // result, and a screen that is about to be replaced cannot show one.
+    let graded = ok;
+    const badge = onGrade(ok);
+    if (badge) cheer(badge.text, badge.big);
+
     act('<button class="btn btn-primary" id="cnext">Continue</button>' +
         (ok ? "" : '<button class="btn btn-ghost btn-sm" id="iknew">I had it right</button>'));
-    document.getElementById("cnext").onclick = () => onDone(ok);
+    document.getElementById("cnext").onclick = () => onNext(graded);
+
     const iknew = document.getElementById("iknew");
     // Typed marking cannot know every synonym in the language; the override is
     // honest about that rather than pretending the dictionary is complete.
-    if (iknew) iknew.onclick = () => onDone(true);
+    if (iknew) iknew.onclick = () => {
+      graded = true;
+      const again = onGrade(true, true);          // re-grade as correct
+      if (again) cheer(again.text, again.big);
+      iknew.remove();
+      msg.innerHTML = '<span class="verdict ok">Counted as right</span>';
+    };
   };
 
   const check = () => {

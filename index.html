@@ -209,6 +209,28 @@ main.centred{display:flex; flex-direction:column; justify-content:center; paddin
 
 .badges{display:flex; flex-wrap:wrap; gap:7px; margin-top:22px}
 
+/* the flip card */
+.flip{perspective:1000px; margin-top:18px}
+.flip-in{
+  position:relative; transform-style:preserve-3d;
+  transition:transform 620ms var(--ease-spring);
+  height:186px;
+}
+.flip.turned .flip-in{transform:rotateY(180deg)}
+.face{
+  position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+  background:var(--surface); border-radius:var(--r-lg); padding:22px;
+  display:flex; flex-direction:column; justify-content:center; gap:6px;
+}
+.face.back{transform:rotateY(180deg)}
+.facelabel{font-size:11px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3)}
+.faceword{font-size:32px; font-weight:760; letter-spacing:-.03em; line-height:1.1; text-wrap:balance}
+.faceex{font-size:14px; color:var(--text-3); margin-top:8px}
+.typed{margin-top:16px}
+.input.ok{border-color:var(--accent-line); color:var(--accent)}
+.input.no{border-color:rgba(255,107,90,.4); color:var(--neg)}
+.memo{font-size:13.5px; color:var(--accent); line-height:1.5}
+
 /* figures */
 .fig{margin-top:22px}
 .fig-head{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:10px}
@@ -838,6 +860,15 @@ const LEECH_LAPSES = 4;                         // lapses before a card is a lee
 const LEECH_STEP_CAP = 2;                       // leeches never exceed 7 days
 const HISTORY_KEEP = 8;                         // deepest read is slice(-5)
 
+// ── the card track ───────────────────────────────────────────────────────────
+// Three correct answers in multiple choice and a word has stopped being a
+// recognition problem, so it leaves the choice stages for typed cards on a
+// long, deliberate ladder: ten days, then a month, then six months. Typing the
+// word is a different act from picking it off a list, and the intervals are set
+// so that getting it right after six months means you own it.
+const MC_TO_CARD = 3;                           // correct answers that graduate a word
+const CARD_LADDER = [10, 30, 180];              // days, indexed by card.cardStep
+
 // stage -> { fmt, dir, promote }
 const STAGES = {
   1: { fmt: "intro",  dir: null,    promote: 0 },
@@ -851,6 +882,7 @@ const STAGES = {
 function newCard(dayKey) {
   return {
     stage: 1, step: 0, ease: 1.0,
+    phase: "mc", cardStep: 0, mcRight: 0,
     intro: dayKey, last: null, next: dayKey,
     correct: 0, wrong: 0, lapses: 0, streak: 0,
     leech: false, history: []
@@ -882,21 +914,38 @@ function intervalFor(card) {
 function grade(card, ok, dayKey, dir, fmt) {
   if (ok) {
     card.correct++;
+    // Counted apart from card.streak, which a stage promotion resets — that
+    // reset is why three correct answers never used to graduate a word.
+    card.mcRight = (card.mcRight || 0) + 1;
     card.streak++;
     card.ease = clamp(+(card.ease + 0.05).toFixed(2), EASE_MIN, EASE_MAX);
     card.step = Math.min(LADDER.length - 1, card.step + 1);
 
-    const rule = STAGES[card.stage];
-    if (rule && rule.promote !== null && card.streak >= rule.promote && card.stage < 6) {
-      card.stage++;
+    if (card.phase === "card") {
+      // On the card track the ladder IS the schedule: each correct typed answer
+      // moves to the next rung and nothing else touches the interval.
+      card.cardStep = card.cardMiss ? 0 : Math.min(CARD_LADDER.length - 1, (card.cardStep || 0) + 1);
+      card.cardMiss = false;
+    } else if ((card.mcRight || 0) >= MC_TO_CARD) {
+      card.phase = "card";                      // graduated out of multiple choice
+      card.cardStep = 0;
+      card.mcRight = 0;
+      card.stage = 6;                           // produce it, both ways, by hand
       card.streak = 0;
-      card.step = Math.max(0, card.step - 1);   // re-test the harder format sooner
+    } else {
+      const rule = STAGES[card.stage];
+      if (rule && rule.promote !== null && card.streak >= rule.promote && card.stage < 6) {
+        card.stage++;
+        card.streak = 0;
+        card.step = Math.max(0, card.step - 1); // re-test the harder format sooner
+      }
     }
     if (card.leech && card.streak >= 2) card.leech = false;
   } else {
     card.wrong++;
     card.lapses++;
     card.streak = 0;
+    card.mcRight = 0;
     card.ease = clamp(+(card.ease - 0.15).toFixed(2), EASE_MIN, EASE_MAX);
     card.step = 0;                               // back to tomorrow
 
@@ -904,13 +953,25 @@ function grade(card, ok, dayKey, dir, fmt) {
     // every time you blank on it once makes stage 6 practically unreachable,
     // and punishes a bad night rather than a genuine gap in knowledge.
     const recentFails = card.history.slice(-2).filter(h => h[3] === false).length + 1;
-    if (card.stage > 2 && recentFails >= 2) card.stage--;
+
+    if (card.phase === "card") {
+      // Typing it wrong sends the word back down its own ladder rather than all
+      // the way to multiple choice — you knew it well enough to get here — and
+      // it comes back TOMORROW, not in ten days.
+      card.cardStep = 0;
+      card.cardMiss = true;
+      if (recentFails >= 2) { card.phase = "mc"; card.stage = 3; }  // two misses: back to choices
+    } else if (card.stage > 2 && recentFails >= 2) {
+      card.stage--;
+    }
 
     if (card.lapses >= LEECH_LAPSES) card.leech = true;
   }
 
   card.last = dayKey;
-  card.next = addDays(dayKey, intervalFor(card));
+  card.next = addDays(dayKey, card.phase === "card"
+    ? (card.cardMiss ? 1 : CARD_LADDER[clamp(card.cardStep || 0, 0, CARD_LADDER.length - 1)])
+    : intervalFor(card));
   // Only the last 2-5 entries are ever read (demotion, recent form), but history
   // was 57% of the state file — which the widget parses on every refresh.
   card.history.push([dayKey, dir || "", fmt || "", !!ok]);
@@ -928,7 +989,10 @@ function accuracy(card) {
 // the evidence. Deliberately NOT gated on lifetime accuracy — a word you fumbled
 // in week one but now recall reliably is mastered, and the stat should say so.
 function isMastered(card) {
-  return !card.known && card.stage === 6 && card.step >= 4;
+  if (card.known) return false;
+  // Typed correctly at the six-month rung: that is the evidence.
+  if (card.phase === "card") return (card.cardStep || 0) >= CARD_LADDER.length - 1;
+  return card.stage === 6 && card.step >= 4;
 }
 
 // Recent form, for the leech check — the last few answers, not all history.
@@ -946,6 +1010,12 @@ function isLearning(card) {
 function promptFor(card, direction) {
   const rule = STAGES[card.stage] || STAGES[2];
   let dir = rule.dir, fmt = rule.fmt;
+  if (card.phase === "card") {
+    fmt = "card";
+    dir = (card.correct + card.wrong) % 2 ? "en_id" : "id_en";
+    if (direction === "id_en" || direction === "en_id") dir = direction;
+    return { fmt: fmt, dir: dir };
+  }
   if (direction === "id_en" || direction === "en_id") dir = direction;
   else if (direction === "both") dir = (card.correct + card.wrong) % 2 ? "en_id" : "id_en";
   else if (card.stage === 2 || card.stage === 3) {
@@ -1505,7 +1575,8 @@ function defaultState() {
     streak: { current: 0, longest: 0, lastCompletedDay: null },
     totals: { reviewsCompleted: 0, practiceAnswers: 0, practiceCorrect: 0 },
     cards: {},
-    days: {}
+    days: {},
+    mnemonics: {}
   };
 }
 
@@ -1532,6 +1603,7 @@ function merge(into) {
   s.totals = Object.assign(d.totals, (into && into.totals) || {});
   s.cards = (into && into.cards) || {};
   s.days = (into && into.days) || {};
+  s.mnemonics = (into && into.mnemonics) || {};
   return s;
 }
 
@@ -1690,6 +1762,8 @@ function newWord(w) {
         '<div class="exEn">' + esc(w.exEn) + '</div>' +
       '</div>' +
       (w.note ? '<div class="card"><div class="note">' + esc(w.note) + '</div></div>' : '') +
+      (STATE.mnemonics && STATE.mnemonics[w.id]
+        ? '<div class="card"><div class="memo">' + esc(STATE.mnemonics[w.id]) + '</div></div>' : '') +
       (skipped ? '<div class="meta">' + skipped + ' word' + (skipped > 1 ? 's' : '') +
                  ' parked as known</div>' : '') +
     '</div>';
@@ -1713,6 +1787,17 @@ function question(q) {
   const ask = q.dir === "id_en"
     ? 'What does <em>' + esc(q.word) + '</em> mean?'
     : 'How do you say <em>' + esc(q.en) + '</em>?';
+
+  // A word that has graduated out of multiple choice is typed, not picked. The
+  // card has already shown the answer on its back, so it records the result and
+  // moves on rather than printing a second verdict under the first.
+  if (q.fmt === "card") return cardScreen(q, ok => {
+    recordAnswer(STATE, plan, dayKey, q.id, ok, q.dir, q.fmt, q.distractorIds);
+    save();
+    if (!ok && needsMnemonic(q.id))
+      return mnemonicScreen(q.id, () => { rebuild(); render(); });
+    rebuild(); render();
+  });
 
   if (q.fmt === "mc") {
     stage.innerHTML =
@@ -1784,7 +1869,12 @@ function judge(q, ok) {
   stage.insertAdjacentHTML("beforeend", body);
   act('<button class="btn btn-primary" id="next">Continue</button>');
   const next = document.getElementById("next");
-  next.onclick = () => { rebuild(); render(); };
+  next.onclick = () => {
+    // Three misses and the app stops just showing the word again.
+    if (!ok && needsMnemonic(q.id))
+      return mnemonicScreen(q.id, () => { rebuild(); render(); });
+    rebuild(); render();
+  };
   setTimeout(() => { try { next.focus({ preventScroll: true }); } catch (e) {} }, 60);
 }
 
@@ -2254,6 +2344,213 @@ function badges(st) {
   return '<div class="badges">' + list.map(b =>
     '<span class="pill' + (b[1] ? " pill-accent" : "") + '">' +
     (b[1] ? "\u2713 " : "") + b[0] + '</span>').join("") + '</div>';
+}
+
+// Starting points for the words people most often mix up — sound-alike hooks,
+// not translations. They are only ever a suggestion: the box opens with this
+// text and you are meant to rewrite it into something that works for you.
+const MNEMONIC_SEEDS = {
+  belum:    "be-LOOM — the loom is not finished: not yet.",
+  sudah:    "soo-DAH — 'so done' already.",
+  bisa:     "BEE-sa — a bee can fly: able to.",
+  boleh:    "BO-lay — you MAY lay down here.",
+  harus:    "ha-ROOS — the rooster MUST crow at dawn.",
+  mau:      "MOW — I want to mow the lawn.",
+  tolong:   "'too long' — I need help, this is taking too long.",
+  maaf:     "sounds like 'my fault' — sorry.",
+  permisi:  "permission — excuse me, may I pass.",
+  sebentar: "se-ben-TAR — hang on, one tar-second.",
+  tunggu:   "TOONG-goo — wait, don't move.",
+  cukup:    "CHOO-koop — one cup is enough.",
+  kurang:   "koo-RANG — the gong rang short: not enough.",
+  dingin:   "DING-in — ding! the fridge door: cold.",
+  panas:    "pah-NAHS — the pan is hot.",
+  besar:    "be-SAR — a big star.",
+  kecil:    "ke-CHEEL — one small chilli.",
+  banyak:   "BAN-yak — a whole herd of yaks: many.",
+  sedikit:  "se-DEE-kit — just a little kit.",
+  murah:    "MOO-rah — moo! cheap as cows.",
+  mahal:    "ma-HAL — everything in the mall is expensive.",
+  dekat:    "de-KAT — the cat is near.",
+  jauh:     "JOW — a long 'jow' way off.",
+  makan:    "MAH-kahn — 'mac and' cheese: eat.",
+  minum:    "MEE-noom — minimum one drink.",
+  pergi:    "per-GHEE — gee up, let's go.",
+  datang:   "dah-TANG — tango over here: come.",
+  pulang:   "poo-LANG — the long walk home.",
+  beli:     "BE-lee — buy a belly-full.",
+  bayar:    "BAH-yar — pay the bar.",
+  uang:     "OO-ang — ka-ching: money.",
+  jalan:    "JAH-lahn — walk down the lane.",
+  rumah:    "ROO-mah — rooms make a house.",
+  air:      "spelled 'air', but it is water.",
+  nasi:     "NAH-see — see the rice.",
+  enak:     "eh-NAK — a tasty snack.",
+  sakit:    "SAH-kit — you need the first-aid kit.",
+  obat:     "OH-baht — the bat brings the medicine.",
+  lagi:     "LAH-gee — again, like a lag repeating.",
+  nanti:    "NAHN-tee — later, after tea.",
+  kemarin:  "ke-ma-RIN — yesterday's rain.",
+  besok:    "BAY-sok — tomorrow, put on a fresh sock."
+};
+
+// ── typed cards ──────────────────────────────────────────────────────────────
+// A word that has survived multiple choice is tested by hand: the prompt on the
+// front, your answer typed, then the card turns and shows the back. Typing is a
+// different act from picking — it is the first time the app asks you to produce
+// the word rather than recognise it.
+
+// Marking is forgiving on everything that is not the word: case, accents,
+// articles, bracketed glosses, and the "·" the vocabulary uses to separate
+// several senses. Any one sense counts.
+function normAnswer(t) {
+  return String(t || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\(.*?\)/g, " ")
+    .replace(/^(to|the|a|an)\s+/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function acceptableAnswers(q) {
+  const raw = q.dir === "id_en" ? q.en : q.word;
+  return raw.split(/[·,;/]| or /).map(normAnswer).filter(Boolean);
+}
+
+// One typo in a longer word should not count as not knowing it.
+function closeEnough(a, b) {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  if (b.length < 5) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++;
+    else if (a.length < b.length) j++;
+    else { i++; j++; }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
+
+function markTyped(q, typed) {
+  const given = normAnswer(typed);
+  if (!given) return "wrong";
+  const want = acceptableAnswers(q);
+  if (want.some(w => w === given)) return "right";
+  if (want.some(w => closeEnough(given, w))) return "close";
+  return "wrong";
+}
+
+function cardScreen(q, onDone) {
+  const prompt = q.dir === "id_en" ? q.word : q.en;
+  const answer = q.dir === "id_en" ? q.en : q.word;
+  const mem = STATE.mnemonics && STATE.mnemonics[q.id];
+
+  stage.innerHTML =
+    '<div class="screen">' +
+      '<div class="label">Write it \u00b7 ' + (q.dir === "id_en" ? "ID \u2192 EN" : "EN \u2192 ID") + '</div>' +
+      '<div class="flip" id="flip">' +
+        '<div class="flip-in">' +
+          '<div class="face front">' +
+            '<div class="facelabel">' + (q.dir === "id_en" ? "Indonesian" : "English") + '</div>' +
+            '<div class="faceword">' + esc(prompt) + '</div>' +
+            (mem ? '<div class="memo">' + esc(mem) + '</div>' : '') +
+          '</div>' +
+          '<div class="face back">' +
+            '<div class="facelabel">' + (q.dir === "id_en" ? "English" : "Indonesian") + '</div>' +
+            '<div class="faceword">' + esc(answer) + '</div>' +
+            '<div class="faceex">' + hl(q.ex, q.word) + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<input class="input typed" id="typed" type="text" autocomplete="off" ' +
+        'autocapitalize="none" autocorrect="off" spellcheck="false" ' +
+        'placeholder="Type the ' + (q.dir === "id_en" ? "meaning" : "word") + '">' +
+      '<div class="meta" id="tmsg"></div>' +
+    '</div>';
+
+  act('<button class="btn btn-primary" id="check">Check</button>');
+
+  const input = document.getElementById("typed");
+  const msg = document.getElementById("tmsg");
+  setTimeout(() => { try { input.focus(); } catch (e) {} }, 80);
+
+  const settle = verdict => {
+    const ok = verdict !== "wrong";
+    document.getElementById("flip").classList.add("turned");
+    input.disabled = true;
+    input.classList.add(ok ? "ok" : "no");
+    msg.innerHTML = verdict === "right" ? '<span class="verdict ok">Correct</span>'
+      : verdict === "close" ? '<span class="verdict ok">Close enough \u2014 ' + esc(answer) + '</span>'
+      : '<span class="verdict no">Not quite \u2014 ' + esc(answer) + '</span>';
+
+    act('<button class="btn btn-primary" id="cnext">Continue</button>' +
+        (ok ? "" : '<button class="btn btn-ghost btn-sm" id="iknew">I had it right</button>'));
+    document.getElementById("cnext").onclick = () => onDone(ok);
+    const iknew = document.getElementById("iknew");
+    // Typed marking cannot know every synonym in the language; the override is
+    // honest about that rather than pretending the dictionary is complete.
+    if (iknew) iknew.onclick = () => onDone(true);
+  };
+
+  const check = () => {
+    if (input.disabled) return;
+    settle(markTyped(q, input.value));
+  };
+  document.getElementById("check").onclick = check;
+  input.addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+}
+
+// ── mnemonics ────────────────────────────────────────────────────────────────
+// After three misses a word is not going to fix itself by being shown again.
+// This is where you write the hook that makes it stick — in your own words,
+// because a mnemonic someone else wrote is just another thing to memorise.
+const MNEMONIC_AFTER = 3;
+
+function needsMnemonic(id) {
+  const c = STATE.cards[id];
+  if (!c || c.known) return false;
+  if (STATE.mnemonics && STATE.mnemonics[id]) return false;
+  return (c.wrong || 0) >= MNEMONIC_AFTER;
+}
+
+function mnemonicScreen(id, onDone) {
+  const v = byId(VOCAB)[id];
+  const c = STATE.cards[id];
+  const seed = MNEMONIC_SEEDS[id];
+
+  stage.innerHTML =
+    '<div class="screen">' +
+      '<div class="label">Eselsbr\u00fccke</div>' +
+      '<div class="ask" style="margin-top:12px">' + esc(v.word) + ' keeps slipping.</div>' +
+      '<div class="subtitle" style="margin-top:10px">' + esc(v.word) + ' \u00b7 ' + esc(v.en) +
+        ' \u2014 missed ' + c.wrong + ' times. Write the hook that makes it stick.</div>' +
+      (seed ? '<div class="meta" style="margin-top:14px">Here is a starting point \u2014 ' +
+              'rewrite it into something that works for you.</div>' : '') +
+      '<input class="input" id="memo" type="text" autocomplete="off" ' +
+        'style="margin-top:14px" placeholder="Sounds like\u2026 / picture\u2026" ' +
+        'value="' + esc(seed || "") + '">' +
+    '</div>';
+
+  act('<button class="btn btn-primary" id="savememo">Save it</button>' +
+      '<button class="btn btn-ghost btn-sm" id="skipmemo">Not now</button>');
+
+  const input = document.getElementById("memo");
+  setTimeout(() => { try { input.focus(); } catch (e) {} }, 80);
+
+  document.getElementById("savememo").onclick = () => {
+    const text = input.value.trim();
+    if (text) {
+      STATE.mnemonics = STATE.mnemonics || {};
+      STATE.mnemonics[id] = text.slice(0, 160);
+      save();
+    }
+    onDone();
+  };
+  document.getElementById("skipmemo").onclick = onDone;
 }
 
 // ── practice ─────────────────────────────────────────────────────────────────

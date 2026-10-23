@@ -26,7 +26,12 @@
   --bg:#09090A;
   --surface:#19191C; --surface-2:#212125; --surface-3:#2B2B30;
   --line:rgba(255,255,255,.06); --line-strong:rgba(255,255,255,.14);
-  --text:#FAFAFA; --text-2:#9B9BA3; --text-3:#6B6B74; --text-4:#4A4A52;
+  --text:#FAFAFA; --text-2:#9B9BA3;
+  /* NXT's muted grey is #6B6B74, which measures 3.3:1 on a card — under WCAG
+     AA, and this app gets read outdoors in Balinese daylight, where screen
+     reflection eats the bottom of the range first. Same hue, lifted until it
+     clears 4.5:1 on the darkest surface it sits on. */
+  --text-3:#81818A; --text-4:#5A5A63;
 
   --accent:#C8F94E; --accent-ink:#0C1004;
   --accent-soft:rgba(200,249,78,.13); --accent-line:rgba(200,249,78,.28);
@@ -387,7 +392,7 @@ body.flash-miss #app{animation:shiver 220ms var(--ease)}
 .pill{
   display:inline-flex; align-items:center; height:26px; padding:0 11px;
   border-radius:var(--r-pill); font-size:12px; font-weight:650; letter-spacing:-.005em;
-  background:var(--surface-2); color:var(--text-3); white-space:nowrap;
+  background:var(--surface-2); color:var(--text-2); white-space:nowrap;
 }
 .pill-accent{background:var(--accent-soft); color:var(--accent)}
 .pill-neg{background:var(--neg-soft); color:var(--neg)}
@@ -422,7 +427,7 @@ body.flash-miss #app{animation:shiver 220ms var(--ease)}
   background:var(--surface); color:var(--text); border:1px solid transparent;
   font:inherit; font-size:15px; -webkit-appearance:none; appearance:none;
 }
-.input::placeholder{color:var(--text-4)}
+.input::placeholder{color:var(--text-3)}
 .input:focus{outline:none; border-color:var(--accent-line); background:var(--surface-2)}
 .swatches{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end}
 .sw{
@@ -472,7 +477,7 @@ body.flash-miss #app{animation:shiver 220ms var(--ease)}
 </div>
 
 <script>
-const BUILD = "2026-10-23 11:09 UTC";
+const BUILD = "2026-10-23 11:14 UTC";
 const VOCAB = [{"id":"sudah","word":"sudah","en":"already · done","ex":"Sudah selesai?","exEn":"Is it done already?","cat":"core","diff":1,"note":"Works alone as an answer: 'Sudah' = yes, done. You'll use this daily. Said 'udah' or just 'dah' in speech.","part":"foundation"},
 {"id":"belum","word":"belum","en":"not yet","ex":"Belum, nanti sore.","exEn":"Not yet, later this afternoon.","cat":"core","diff":1,"note":"The natural answer to any 'sudah…?' question. Never use 'tidak' for this. Said 'belom' in speech, but written belum.","part":"foundation"},
 {"id":"bisa","word":"bisa","en":"can","ex":"Bisa besok?","exEn":"Can you do it tomorrow?","cat":"core","diff":1,"part":"foundation"},
@@ -1046,11 +1051,18 @@ function intervalFor(card) {
 
 // Apply one graded answer. Mutates and returns the card.
 function grade(card, ok, dayKey, dir, fmt) {
-  // Answering the same word again on the same day — a second practice round,
-  // say — still counts towards the tally, but it cannot move the word along the
-  // ladder a second time. Otherwise one evening of drilling retires a word you
-  // have known for a few hours.
+  // Two guards, both about the same thing: an interval is a claim about TIME,
+  // so only time may collect it.
+  //
+  //  1. A word answered again on the same day still counts towards the tally,
+  //     but cannot climb a second rung.
+  //  2. A word answered BEFORE it is due — practice, usually — counts too, but
+  //     cannot move its schedule at all. Without this, drilling a word on the
+  //     day it was introduced walked it through ten days, three months and six
+  //     months inside a week, and retired it.
   const settledToday = card.last === dayKey;
+  const due = daysBetween(card.next, dayKey) >= 0;
+  const earlyLook = !due;
   if (ok) {
     card.correct++;
     // Counted apart from card.streak, which a stage promotion resets — that
@@ -1060,7 +1072,7 @@ function grade(card, ok, dayKey, dir, fmt) {
     card.ease = clamp(+(card.ease + 0.05).toFixed(2), EASE_MIN, EASE_MAX);
     card.step = Math.min(LADDER.length - 1, card.step + 1);
 
-    if (settledToday) {
+    if (settledToday || earlyLook) {
       // tally only; the ladder and the date stay where they were
     } else if (card.phase === "card") {
       // On the card track the ladder IS the schedule: each correct typed answer
@@ -1098,7 +1110,10 @@ function grade(card, ok, dayKey, dir, fmt) {
     // and punishes a bad night rather than a genuine gap in knowledge.
     const recentFails = card.history.slice(-2).filter(h => h[3] === false).length + 1;
 
-    if (card.phase === "card") {
+    if (earlyLook) {
+      // Missing a word you were not due to see is worth knowing about, but it
+      // is not evidence that the interval was wrong.
+    } else if (card.phase === "card") {
       // Typing it wrong sends the word back down its own ladder rather than all
       // the way to multiple choice — you knew it well enough to get here — and
       // it comes back TOMORROW, not in ten days.
@@ -1123,7 +1138,7 @@ function grade(card, ok, dayKey, dir, fmt) {
   }
   // Only the last 2-5 entries are ever read (demotion, recent form), but history
   // was 57% of the state file — which the widget parses on every refresh.
-  if (settledToday) card.next = keepNext;         // one move a day, no more
+  if (settledToday || earlyLook) card.next = keepNext;   // the date is earned, not drilled
   card.history.push([dayKey, dir || "", fmt || "", !!ok]);
   if (card.history.length > HISTORY_KEEP) card.history = card.history.slice(-HISTORY_KEEP);
   return card;
@@ -2984,22 +2999,14 @@ function renderPractice() {
     STATE.totals.practiceAnswers = (STATE.totals.practiceAnswers || 0) + 1;
     if (ok) STATE.totals.practiceCorrect = (STATE.totals.practiceCorrect || 0) + 1;
 
-    // Practice COUNTS. Getting a word right here is the same evidence as
-    // getting it right in a review, so it moves the three-in-a-row tally and
-    // can graduate a word onto the written cards.
-    //
-    // What it cannot do is push the same word's next date forward again and
-    // again: the interval is earned once a day, however many rounds you do.
-    // Otherwise one keen evening would fling half your vocabulary six months
-    // into the future.
+    // Practice COUNTS: a word you get right here moves the three-in-a-row tally
+    // and can graduate onto the written cards. What it cannot do is collect an
+    // interval early — see grade(), where that rule lives.
+    // The engine owns the rules about when an interval may move (see grade()):
+    // practice just reports the answer.
     const card = STATE.cards[q.id];
     const phaseBefore = card && card.phase;
-    if (card) {
-      const earnedToday = card.last === dayKey;
-      const keepNext = card.next;
-      grade(card, ok, dayKey, q.dir, q.fmt);
-      if (earnedToday) card.next = keepNext;
-    }
+    if (card) grade(card, ok, dayKey, q.dir, q.fmt);
     save();
 
     stage.insertAdjacentHTML("beforeend",

@@ -380,6 +380,9 @@ body.flash-miss #app{animation:shiver 220ms var(--ease)}
 .wrow+.wrow{border-top:1px solid var(--line)}
 .wword{font-size:16px; font-weight:650; letter-spacing:-.01em; min-width:0}
 .wword small{display:block; font-size:13px; font-weight:400; color:var(--text-3); letter-spacing:0}
+.wmemo{display:block; margin-top:4px; font-style:normal; font-size:12.5px; font-weight:500; color:var(--accent)}
+.wrow{cursor:pointer}
+.wrow:active{opacity:.6}
 .wmeta{flex:0 0 auto}
 .pill{
   display:inline-flex; align-items:center; height:26px; padding:0 11px;
@@ -469,7 +472,7 @@ body.flash-miss #app{animation:shiver 220ms var(--ease)}
 </div>
 
 <script>
-const BUILD = "2026-10-23 11:00 UTC";
+const BUILD = "2026-10-23 11:01 UTC";
 const VOCAB = [{"id":"sudah","word":"sudah","en":"already · done","ex":"Sudah selesai?","exEn":"Is it done already?","cat":"core","diff":1,"note":"Works alone as an answer: 'Sudah' = yes, done. You'll use this daily. Said 'udah' or just 'dah' in speech.","part":"foundation"},
 {"id":"belum","word":"belum","en":"not yet","ex":"Belum, nanti sore.","exEn":"Not yet, later this afternoon.","cat":"core","diff":1,"note":"The natural answer to any 'sudah…?' question. Never use 'tidak' for this. Said 'belom' in speech, but written belum.","part":"foundation"},
 {"id":"bisa","word":"bisa","en":"can","ex":"Bisa besok?","exEn":"Can you do it tomorrow?","cat":"core","diff":1,"part":"foundation"},
@@ -2797,15 +2800,19 @@ function needsMnemonic(id) {
 
 function mnemonicScreen(id, onDone) {
   const v = byId(VOCAB)[id];
-  const c = STATE.cards[id];
-  const seed = MNEMONIC_SEEDS[id];
+  const c = STATE.cards[id] || { wrong: 0 };
+  const have = (STATE.mnemonics && STATE.mnemonics[id]) || "";
+  const seed = have || MNEMONIC_SEEDS[id];
+  const slipping = (c.wrong || 0) >= MNEMONIC_AFTER;
 
   stage.innerHTML =
     '<div class="screen">' +
       '<div class="label">Eselsbr\u00fccke</div>' +
-      '<div class="ask" style="margin-top:12px">' + esc(v.word) + ' keeps slipping.</div>' +
+      '<div class="ask" style="margin-top:12px">' +
+        esc(v.word) + (slipping ? " keeps slipping." : "") + '</div>' +
       '<div class="subtitle" style="margin-top:10px">' + esc(v.word) + ' \u00b7 ' + esc(v.en) +
-        ' \u2014 missed ' + c.wrong + ' times. Write the hook that makes it stick.</div>' +
+        (c.wrong ? ' \u2014 missed ' + c.wrong + (c.wrong === 1 ? ' time' : ' times') : '') +
+        '. Write the hook that makes it stick.</div>' +
       (seed ? '<div class="meta" style="margin-top:14px">Here is a starting point \u2014 ' +
               'rewrite it into something that works for you.</div>' : '') +
       '<input class="input" id="memo" type="text" autocomplete="off" ' +
@@ -2821,11 +2828,10 @@ function mnemonicScreen(id, onDone) {
 
   document.getElementById("savememo").onclick = () => {
     const text = input.value.trim();
-    if (text) {
-      STATE.mnemonics = STATE.mnemonics || {};
-      STATE.mnemonics[id] = text.slice(0, 160);
-      save();
-    }
+    STATE.mnemonics = STATE.mnemonics || {};
+    if (text) STATE.mnemonics[id] = text.slice(0, 160);
+    else delete STATE.mnemonics[id];               // cleared on purpose
+    save();
     onDone();
   };
   document.getElementById("skipmemo").onclick = onDone;
@@ -2971,7 +2977,14 @@ function renderPractice() {
       flash("miss");
     }
     act('<button class="btn btn-primary" id="pnext">Continue</button>');
-    document.getElementById("pnext").onclick = () => { practice.i++; renderPractice(); };
+    document.getElementById("pnext").onclick = () => {
+      // Practice is where most misses happen, so it is where the memory aid is
+      // most worth offering.
+      if (!ok && needsMnemonic(q.id))
+        return mnemonicScreen(q.id, () => { practice.i++; renderPractice(); });
+      practice.i++;
+      renderPractice();
+    };
   });
 }
 
@@ -3017,9 +3030,14 @@ function wordsScreen() {
   const line = (id, right) => {
     const v = vm[id];
     if (!v) return "";
-    return '<div class="wrow"><div class="wword">' + esc(v.word) +
-           '<small>' + esc(v.en) + '</small></div>' +
-           '<div class="wmeta">' + right + '</div></div>';
+    const memo = STATE.mnemonics && STATE.mnemonics[id];
+    return '<div class="wrow" data-id="' + id + '">' +
+             '<div class="wword">' + esc(v.word) +
+               '<small>' + esc(v.en) + '</small>' +
+               (memo ? '<em class="wmemo">' + esc(memo) + '</em>' : '') +
+             '</div>' +
+             '<div class="wmeta">' + right + '</div>' +
+           '</div>';
   };
 
   const badge = tag =>
@@ -3054,6 +3072,12 @@ function wordsScreen() {
 
   act('<button class="btn btn-primary" id="back">Done</button>');
   document.getElementById("back").onclick = () => { atHome = true; rebuild(); render(); };
+
+  // Tap any word to write or change its Eselsbr\u00fccke, rather than waiting
+  // for the app to decide you have missed it often enough.
+  stage.querySelectorAll(".wrow").forEach(row => row.onclick = () => {
+    mnemonicScreen(row.dataset.id, wordsScreen);
+  });
 }
 
 // ── settings ─────────────────────────────────────────────────────────────────

@@ -469,7 +469,7 @@ body.flash-miss #app{animation:shiver 220ms var(--ease)}
 </div>
 
 <script>
-const BUILD = "2026-10-22 12:30 UTC";
+const BUILD = "2026-10-23 11:00 UTC";
 const VOCAB = [{"id":"sudah","word":"sudah","en":"already · done","ex":"Sudah selesai?","exEn":"Is it done already?","cat":"core","diff":1,"note":"Works alone as an answer: 'Sudah' = yes, done. You'll use this daily. Said 'udah' or just 'dah' in speech.","part":"foundation"},
 {"id":"belum","word":"belum","en":"not yet","ex":"Belum, nanti sore.","exEn":"Not yet, later this afternoon.","cat":"core","diff":1,"note":"The natural answer to any 'sudah…?' question. Never use 'tidak' for this. Said 'belom' in speech, but written belum.","part":"foundation"},
 {"id":"bisa","word":"bisa","en":"can","ex":"Bisa besok?","exEn":"Can you do it tomorrow?","cat":"core","diff":1,"part":"foundation"},
@@ -2062,16 +2062,19 @@ function cheerFor(id) {
   if (!c || c.known) return null;
 
   if (c.phase === "done")
-    return { big: true, dots: dots(3, 3, 2), text: "Yours \u00b7 retired from testing" };
+    return { big: true, dots: dots(3, 3, 2), text: "Yours \u00b7 retired, never asked again" };
 
   if (c.phase === "card") {
     const step = c.cardStep || 0;
-    if (c.cardMiss) return { dots: dots(0, 3, -1), text: "Written \u00b7 back tomorrow" };
+    if (c.cardMiss) return { dots: dots(0, 3, -1), text: "Card missed \u00b7 back tomorrow" };
+    // Read the date off the card itself. The rung labels used to be written by
+    // hand and were a step out of line with the actual schedule.
+    const last = step >= 3 - 1;
     return {
+      big: last,
       dots: dots(step + 1, 3, step),
-      text: step === 0 ? "Written 1 of 3 \u00b7 back in three months"
-           : step === 1 ? "Written 2 of 3 \u00b7 back in six months"
-                        : "Written 3 of 3 \u00b7 one more clears it for good"
+      text: "Card " + (step + 1) + " of 3 \u00b7 back " + humanGap(c.next) +
+            (last ? " \u00b7 get it then and it is retired" : "")
     };
   }
 
@@ -2082,6 +2085,17 @@ function cheerFor(id) {
     text: n + " of " + MC_TO_CARD_UI + " right in a row" +
           (n === MC_TO_CARD_UI - 1 ? " \u00b7 one more and it is yours" : "")
   };
+}
+
+// "back tomorrow", "back in 3 months" — said the way a person would.
+function humanGap(nextKey) {
+  const d = daysBetween(dayKey, nextKey);
+  if (d <= 0) return "today";
+  if (d === 1) return "tomorrow";
+  if (d < 14) return "in " + d + " days";
+  if (d < 60) return "in " + Math.round(d / 7) + " weeks";
+  if (d < 365) return "in " + Math.round(d / 30) + " months";
+  return "in " + (Math.round(d / 36.5) / 10) + " years";
 }
 
 // The three-in-a-row goal, drawn. The whole scheme hangs on this number, so it

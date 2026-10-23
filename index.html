@@ -472,7 +472,7 @@ body.flash-miss #app{animation:shiver 220ms var(--ease)}
 </div>
 
 <script>
-const BUILD = "2026-10-23 11:01 UTC";
+const BUILD = "2026-10-23 11:09 UTC";
 const VOCAB = [{"id":"sudah","word":"sudah","en":"already · done","ex":"Sudah selesai?","exEn":"Is it done already?","cat":"core","diff":1,"note":"Works alone as an answer: 'Sudah' = yes, done. You'll use this daily. Said 'udah' or just 'dah' in speech.","part":"foundation"},
 {"id":"belum","word":"belum","en":"not yet","ex":"Belum, nanti sore.","exEn":"Not yet, later this afternoon.","cat":"core","diff":1,"note":"The natural answer to any 'sudah…?' question. Never use 'tidak' for this. Said 'belom' in speech, but written belum.","part":"foundation"},
 {"id":"bisa","word":"bisa","en":"can","ex":"Bisa besok?","exEn":"Can you do it tomorrow?","cat":"core","diff":1,"part":"foundation"},
@@ -1830,6 +1830,45 @@ function applyAccent() {
   root.setProperty("--accent-line", softOf(a.base, .28));
 }
 
+// ── repair ───────────────────────────────────────────────────────────────────
+// Until 23 Oct a word could climb the whole card ladder inside one practice
+// session, because every correct answer moved it a rung. Those words are now
+// sitting on intervals they never earned — some retired outright. Time is the
+// one thing that cannot be faked, so each card is checked against its own age:
+// a rung you could not possibly have reached yet is rolled back, and the word
+// comes due again.
+function repairLadder() {
+  // Days that must have passed since a word was introduced to legitimately
+  // stand on each rung: graduation, then tomorrow, then three months.
+  const MIN_AGE = [0, 1, 91];
+  const MIN_AGE_RETIRED = 271;                  // 1 + 90 + 180
+  let fixed = 0;
+
+  for (const id in STATE.cards) {
+    const c = STATE.cards[id];
+    if (!c || c.known || !c.intro) continue;
+    const age = daysBetween(c.intro, dayKey);
+
+    if (c.phase === "done" && age < MIN_AGE_RETIRED) {
+      c.phase = "card";
+      c.cardStep = age >= MIN_AGE[2] ? 2 : age >= MIN_AGE[1] ? 1 : 0;
+      c.next = dayKey;                          // back in the queue today
+      fixed++;
+      continue;
+    }
+    if (c.phase === "card") {
+      const allowed = age >= MIN_AGE[2] ? 2 : age >= MIN_AGE[1] ? 1 : 0;
+      if ((c.cardStep || 0) > allowed) {
+        c.cardStep = allowed;
+        c.next = dayKey;
+        fixed++;
+      }
+    }
+  }
+  if (fixed) save();
+  return fixed;
+}
+
 // ── session ──────────────────────────────────────────────────────────────────
 const stage = document.getElementById("stage");
 const actions = document.getElementById("actions");
@@ -1860,6 +1899,7 @@ function hl(sentence, word) {
 function start() {
   dayKey = dayKeyOf(new Date());
   if (!STATE.firstDay) STATE.firstDay = dayKey;
+  repairLadder();
   plan = planDay(STATE, VOCAB, dayKey);
   persistPlan(STATE, plan);
   save();
@@ -2847,7 +2887,7 @@ let practice = null;
 function practicePool() {
   return Object.keys(STATE.cards).filter(id => {
     const c = STATE.cards[id];
-    return c && !c.known && c.stage >= 2;
+    return c && !c.known && c.stage >= 2 && c.phase !== "done";
   });
 }
 

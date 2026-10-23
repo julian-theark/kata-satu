@@ -4,7 +4,7 @@
 // and a cache-first page means a new version is invisible until the app has
 // been opened twice. Everything else (icons, the manifest) is cache-first,
 // since those rarely change and should never cost a round trip.
-const CACHE = "kata-satu-0bad3d505024";
+const CACHE = "kata-satu-ad02dc380203";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest",
                "./icon/icon-192.png", "./icon/icon-512.png", "./icon/apple-touch-icon.png"];
 

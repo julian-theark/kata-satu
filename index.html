@@ -385,7 +385,8 @@ body.flash-miss #app{animation:shiver 220ms var(--ease)}
 .wrow+.wrow{border-top:1px solid var(--line)}
 .wword{font-size:16px; font-weight:650; letter-spacing:-.01em; min-width:0}
 .wword small{display:block; font-size:13px; font-weight:400; color:var(--text-3); letter-spacing:0}
-.wmemo{display:block; margin-top:4px; font-style:normal; font-size:12.5px; font-weight:500; color:var(--accent)}
+.wmemo{display:block; margin-top:4px; font-style:normal; font-size:12.5px; font-weight:500; color:var(--text-2)}
+.wmemo.mine{color:var(--accent)}
 .wrow{cursor:pointer}
 .wrow:active{opacity:.6}
 .wmeta{flex:0 0 auto}
@@ -477,7 +478,7 @@ body.flash-miss #app{animation:shiver 220ms var(--ease)}
 </div>
 
 <script>
-const BUILD = "2026-10-23 11:14 UTC";
+const BUILD = "2026-10-24 04:07 UTC";
 const VOCAB = [{"id":"sudah","word":"sudah","en":"already · done","ex":"Sudah selesai?","exEn":"Is it done already?","cat":"core","diff":1,"note":"Works alone as an answer: 'Sudah' = yes, done. You'll use this daily. Said 'udah' or just 'dah' in speech.","part":"foundation"},
 {"id":"belum","word":"belum","en":"not yet","ex":"Belum, nanti sore.","exEn":"Not yet, later this afternoon.","cat":"core","diff":1,"note":"The natural answer to any 'sudah…?' question. Never use 'tidak' for this. Said 'belom' in speech, but written belum.","part":"foundation"},
 {"id":"bisa","word":"bisa","en":"can","ex":"Bisa besok?","exEn":"Can you do it tomorrow?","cat":"core","diff":1,"part":"foundation"},
@@ -983,6 +984,513 @@ const VOCAB = [{"id":"sudah","word":"sudah","en":"already · done","ex":"Sudah s
 {"id":"sabtu","word":"Sabtu","en":"Saturday","ex":"Sabtu saya libur.","exEn":"I'm off on Saturday.","cat":"time","diff":1,"part":"life and health"},
 {"id":"minggu-hari","word":"Minggu","en":"Sunday","ex":"Hari Minggu tutup.","exEn":"Closed on Sundays.","cat":"time","diff":1,"part":"life and health"},
 {"id":"tanggal","word":"tanggal","en":"date","ex":"Tanggal berapa?","exEn":"What date?","cat":"time","diff":2,"part":"life and health"}];
+const HOOKS = {
+"ac": "'AC', said 'ah-say'. Air conditioning.",
+"acara": "a-CHA-ra — event, programme, plan.",
+"ada": "AH-da — 'ah, da ist es': there it is.",
+"agak": "A-gak — a bit, somewhat. Smaller than 'agak' sounds.",
+"air": "spelled 'air', but it is water. AH-eer.",
+"air-panas": "'air' water, 'panas' hot. Hot water.",
+"air-putih": "'putih' is white: plain white water. Drinking water.",
+"aja": "AH-ja — 'nur ja', just that and nothing else.",
+"akhirnya": "a-KHIR-nya — from 'akhir', the end. Finally.",
+"alamat": "a-LA-mat — the address on the mat by the door.",
+"alergi": "a-LER-gee — allergic. 'Saya alergi udang': allergic to prawns.",
+"ambil": "AM-bil — grab the bill off the table.",
+"aneh": "A-neh — strange. 'Bunyinya aneh': it sounds odd.",
+"angin": "ANG-in — wind. 'Masuk angin' is the catch-all for feeling off.",
+"angkat": "ANG-kat — lift. Also: answer the phone.",
+"anjing": "AN-jing — dog. A word you will hear a lot on a scooter.",
+"antar": "AN-tar — deliver it to the door.",
+"apa": "A-pa — 'what, papa?'",
+"apotek": "a-po-TEK — pharmacy. Apotheke, near enough.",
+"asam": "A-sahm — sour. Tamarind is 'asam'.",
+"asin": "A-seen — salty. Short and sharp.",
+"asli": "AS-lee — original, genuine. The opposite of palsu.",
+"asuransi": "a-soo-RAN-see — insurance.",
+"atas": "A-tas — up on the attic.",
+"atm": "'ATM', said 'ah-tay-em'. The cash machine.",
+"ayam": "A-yahm — chicken. On every menu.",
+"babi": "BA-bee — pork. 'Babi guling' is the Balinese suckling pig.",
+"bagus": "BA-goos — good. Think 'gorgeous' with the middle cut out.",
+"bakar": "BA-kar — grilled over fire. Also: burnt.",
+"ban": "bahn — tyre. German 'Bahn' runs on them.",
+"banget": "BA-nget — very, in speech. 'Enak banget' is seriously good.",
+"bangun": "BA-ngoon — wake up. Also: to build.",
+"banjir": "BAHN-jeer — flood. Rainy season reality.",
+"bantal": "BAHN-tahl — pillow. Not 'bantu', help.",
+"bantu": "BAN-too — help. From the same root as 'bantuan', aid.",
+"banyak": "BAN-yak — a whole herd of yaks. Many.",
+"baru": "BA-roo — brand new, barely used.",
+"barusan": "ba-ROO-san — from 'baru', new. Brand new in time: just now.",
+"basah": "BA-sah — wet. Say it and you can hear the splash.",
+"batal": "BA-tahl — cancelled. The plan is off.",
+"bawa": "BA-wa — bring the water.",
+"bawah": "BA-wah — bow down low. Below.",
+"bayar": "BA-yar — pay the bar.",
+"bayar-dulu": "'bayar' pay + 'di muka' at the front. Pay upfront.",
+"belakang": "be-LA-kang — the back, where the gang hangs about.",
+"belas": "be-LAS — the -teen ending. 'Dua belas' is twelve.",
+"beli": "BE-lee — buy a belly-full.",
+"belok": "BAY-lok — turn at the block.",
+"belum": "be-LOOM — the loom is still weaving: not yet.",
+"belum-pernah": "'belum' not yet + 'pernah' ever. Never — but not ruled out.",
+"benci": "BEN-chee — to hate. 'Benci' bites.",
+"bengkel": "BENG-kel — repair shop. From Dutch 'winkel'.",
+"bensin": "BEN-seen — benzine. Petrol.",
+"berangkat": "be-RANG-kat — depart, set off. The bell rang, the cat left.",
+"berapa": "be-RA-pa — 'wrapper how many?' How much.",
+"berhenti": "ber-HEN-tee — stop. The hen stops in the road.",
+"berlaku": "ber-LA-koo — valid. 'Berlaku sampai' is valid until.",
+"bersama": "ber-SA-ma — 'sama' is with. Together.",
+"bersih": "BER-see — scrub it till you can see. Clean.",
+"besar": "be-SAR — a big star.",
+"besok": "BAY-sok — tomorrow, fresh socks.",
+"betul": "be-TOOL — the right tool for the job. Correct.",
+"biasanya": "bee-A-sa-nya — from 'biasa', usual. Usually.",
+"biaya": "bee-A-ya — cost, fee. The official sort.",
+"bicara": "bee-CHA-ra — speak, formally.",
+"bikin": "BEE-kin — make. Spoken Indonesian's everyday 'buat'.",
+"bilang": "BEE-lang — tell it in your own lang-uage.",
+"bingung": "BEENG-oong — confused. Sounds like your head going bing.",
+"bisa": "BEE-sa — a bee can fly.",
+"bocor": "BO-chor — leaking. A pipe gone bad.",
+"bohong": "BO-hong — to lie. 'Jangan bohong.'",
+"boleh": "BO-lay — you may lay down here.",
+"bon": "bon — the bill, as in French 'bon'. Ask: boleh minta bon?",
+"bos": "bos — boss. Also a friendly way to address a man.",
+"buah": "BOO-ah — fruit. 'Jus buah' is fruit juice.",
+"buang": "BOO-ang — throw away. Bang, into the bin.",
+"buka": "BOO-ka — 'buch auf', open the book.",
+"bulan": "BOO-lahn — the moon. A moon is a month.",
+"bundaran": "boon-DA-ran — roundabout. From 'bundar', round.",
+"bungkus": "BOONG-koos — bundle it up to take away.",
+"bunyi": "BOON-yee — a sound, usually one you did not want.",
+"butuh": "BOO-tooh — need a thing. 'Perlu' is need TO do.",
+"capek": "CHA-pek — tired. Said constantly, with feeling.",
+"cari": "CHA-ree — look for. 'Cari apa?' What are you after?",
+"cepat": "che-PAT — a quick pat, done fast.",
+"cicak": "CHEE-chak — house gecko. Named after its call: chak chak.",
+"cicil": "CHEE-cheel — pay in instalments, bit by bit.",
+"coba": "CHO-ba — have a go. 'Coba lihat' is take a look.",
+"colokan": "cho-LO-kan — socket. From 'colok', to poke in.",
+"cuci": "CHOO-chee — wash, scrub, 'choo-choo' the laundry.",
+"cuci-baju": "'cuci' wash + 'baju' clothes. Laundry.",
+"cukup": "CHOO-koop — one cup is enough.",
+"cuti": "CHOO-tee — leave from work. 'Cuti tahunan' is annual leave.",
+"dapat": "DA-pat — get, obtain. Also: to be able to.",
+"dapur": "DA-poor — kitchen. Where the pour happens.",
+"datang": "da-TAHNG — come, arrive. Tango over here.",
+"daun": "DOWN — leaf. Leaves come down.",
+"debu": "DE-boo — dust. It gets everywhere.",
+"dekat": "de-KAT — the cat is near.",
+"delapan": "de-LA-pahn — eight.",
+"demam": "de-MAHM — fever.",
+"denda": "DEN-da — fine, penalty. The money part.",
+"dengar": "DENG-ar — hear. The 'ding' reaches your ear.",
+"depan": "de-PAHN — the pan in front of you on the stove.",
+"deras": "DE-rahs — heavy, of rain or a current.",
+"desa": "DE-sa — village. Bali is organised by desa.",
+"di-mana": "di MA-na — 'di' is at, 'mana' is which. At which place: where.",
+"diare": "dee-A-re — diarrhoea. Bali belly.",
+"dingin": "DING-in — ding! the fridge. Cold.",
+"diskon": "DEES-kon — discount. Same word, softened.",
+"doang": "DO-ang — only that, nothing more. Street slang.",
+"dokter": "DOK-ter — doctor.",
+"dompet": "DOM-pet — wallet. Keep it in your front pocket.",
+"dong": "dong — adds a please, a nudge. 'Ayo dong!'",
+"dorong": "DO-rong — push. The other door sign.",
+"dua": "DOO-a — a duo. Two.",
+"dulu": "DOO-loo — the loo first, before anything else.",
+"empat": "EM-paht — four. 'Perempatan', the crossroads, is built on it.",
+"enak": "e-NAK — a tasty snack.",
+"enam": "e-NAHM — six.",
+"es": "es — ice, as in 'es' tea. Say it 'ess'.",
+"fotokopi": "fo-to-KO-pee — photocopy. Needed for everything official.",
+"gaji": "GA-jee — salary. Payday.",
+"galak": "GA-lak — fierce. 'Anjingnya galak' is the dog bites.",
+"gampang": "GAHM-pang — easy. Said with a shrug.",
+"gang": "gang — a narrow lane between houses. Said 'gahng'.",
+"ganti": "GAHN-tee — swap it out, change the gantry.",
+"garam": "GA-rahm — salt. One gram of garam.",
+"gas": "gas — the cylinder under the stove. Same word.",
+"genset": "GEN-set — generator set. Vital in a power cut.",
+"gigi": "GEE-gee — tooth. Also the gears on a bike.",
+"gimana": "gee-MA-na — 'gimme a hint how'.",
+"gini": "GEE-nee — like this. Short for 'begini'.",
+"gitu": "GEE-too — like that. Short for 'begitu'.",
+"goreng": "GO-reng — fried. The most useful cooking word here.",
+"gratis": "GRA-tees — free of charge. Same as the German.",
+"gula": "GOO-la — sugar. Hear 'glucose' in it.",
+"habis": "HA-bees — the bees have taken it all. Used up.",
+"halal": "ha-LAHL — halal. Matters on most menus here.",
+"hampir": "HAM-peer — almost there, you can peer at it.",
+"handuk": "HAN-dook — towel. From Dutch 'handdoek', hand cloth.",
+"harap": "HA-rahp — please, formally. Seen on signs.",
+"harga": "HAR-ga — price. 'Berapa harganya?' How much is it?",
+"hari": "HA-ri — a hairy long day.",
+"hari-ini": "HA-ri EE-ni — 'hari' is day, 'ini' is this. This day.",
+"harus": "ha-ROOS — the rooster must crow at dawn.",
+"hati-hati": "HA-tee — 'hati' is heart, said twice: mind your heart. Be careful.",
+"haus": "HOWS — thirsty. Rhymes with 'house'.",
+"helm": "helm — helmet. Required, and enforced.",
+"hidup": "HEE-doop — 'heads up', it is alive and on.",
+"hilang": "HEE-lang — lost, gone missing.",
+"hp": "'HP', said 'ha-pay'. Mobile phone — from 'handphone'.",
+"hujan": "HOO-jahn — rain. 'Hujan deras' is pouring.",
+"ikan": "EE-kahn — fish.",
+"imigrasi": "ee-mee-GRA-see — immigration. Where visas are extended.",
+"ingat": "ING-at — remember. Hear the 'in' that stays in your head.",
+"isi": "EE-see — fill, or contents. 'Isi bensin' is fill up with petrol.",
+"istirahat": "ees-tee-RA-hat — to rest. The doctor's first instruction.",
+"izin": "EE-zeen — permit, permission. 'Minta izin' is to ask leave.",
+"jadi": "JA-dee — so, therefore. 'Jadi?' means 'so?'",
+"jalan": "JA-lahn — walk down the lane. Also: road.",
+"jalan-raya": "'jalan' road + 'raya' great. The main road.",
+"jam": "jam — the hour the jam is ready. Also a clock.",
+"jangan": "JAHNG-an — the gong says: don't.",
+"janji": "JAHN-jee — a promise, and an appointment. The same word.",
+"jarang": "JA-rang — the gong rarely rings.",
+"jatuh": "JA-tooh — to fall. 'Saya jatuh dari motor.'",
+"jauh": "JOW — a long 'jow' way off. Far.",
+"jawab": "JA-wab — answer. 'Jawab' the 'tanya'.",
+"jelaskan": "je-LAS-kan — from 'jelas', clear. Make it clear: explain.",
+"jelek": "JE-lek — bad, ugly. The blunt one.",
+"jemput": "JEM-poot — collect someone. 'Saya jemput' is I'll pick you up.",
+"jemur": "JE-moor — hang out to dry in the sun.",
+"juga": "JOO-ga — also, too. 'Saya juga' is me too.",
+"jujur": "JOO-joor — honest. Say it twice and you mean it.",
+"juta": "JOO-ta — million. Rupiah are counted in juta.",
+"kabel": "KA-bel — cable. Same word.",
+"kadang": "KA-dang — now and then, a ding here and there.",
+"kaki": "KA-kee — foot, and the whole leg. Khaki trousers cover them.",
+"kalau": "KA-low — 'if it goes low'. If.",
+"kamar": "KA-mar — a chamber. Room.",
+"kamar-mandi": "'kamar' room + 'mandi' bathe. Bathroom.",
+"kanan": "KA-nan — the right hand holds the cannon.",
+"kantor": "KAHN-tor — office. From Dutch 'kantoor'.",
+"kapan": "KA-pan — when does the pan boil?",
+"kaporit": "ka-PO-rit — chlorine. What goes in the kolam.",
+"karena": "ka-RE-na — 'weil Karina es sagt'. Because.",
+"kartu": "KAR-too — a card. Almost the English word.",
+"karyawan": "kar-ya-WAHN — employee, staff. From 'karya', work.",
+"kasar": "KA-sar — rude, or rough to the touch.",
+"kasih": "KA-see — 'cash he gives'. To give.",
+"kayaknya": "KA-yak-nya — from 'kaya', like. Looks like, seems like.",
+"keberatan": "ke-be-RA-tan — from 'berat', heavy. Finding it heavy: to mind.",
+"kecil": "ke-CHEEL — one small chilli.",
+"keluar": "ke-LOO-ar — go out. 'Luar' is outside.",
+"kemarin": "ke-ma-RIN — yesterday's rain.",
+"kembalian": "kem-ba-LEE-an — from 'kembali', to come back. The money that comes back.",
+"kempes": "KEM-pes — flat, deflated. 'Bannya kempes.'",
+"kena": "KE-na — to get hit by, to catch it. 'Kena hujan': caught in the rain.",
+"kenal": "ke-NAHL — know a person. Different from 'tahu', know a fact.",
+"kenapa": "ke-NA-pa — 'why, papa?'",
+"kencang": "ken-CHAHNG — strong, fast. Wind, or riding.",
+"kenyang": "ke-NYAHNG — full from eating. The happy end of a meal.",
+"kepala": "ke-PA-la — head. Also the head of something: 'kepala desa'.",
+"keran": "KE-rahn — tap. From Dutch 'kraan'.",
+"kering": "KE-ring — dry. The ring is dry.",
+"kerja": "KER-ja — work, graft, 'ker-ja' like a hammer.",
+"ketemu": "ke-TE-moo — meet, or find. 'Ketemu lagi' is see you again.",
+"ketinggalan": "ke-ting-GA-lan — from 'tinggal', to remain. It stayed behind.",
+"kipas": "KEE-pas — fan. It keeps passing air.",
+"kira": "KEE-ra — to guess, to assume. 'Saya kira' is I thought.",
+"kiri": "KEE-ri — left, where the key ring hangs.",
+"kirim": "KEE-rim — send it over the rim.",
+"klinik": "KLEE-neek — clinic.",
+"kolam": "KO-lahm — pool. 'Kolam renang' is a swimming pool.",
+"kompor": "KOM-por — stove. The burner you pour onto.",
+"kontrak": "KON-trak — contract, lease. Same word.",
+"kopi": "KO-pee — coffee. 'Kopi hitam' is black coffee.",
+"kosong": "KO-song — empty. Also 'zero' in phone numbers.",
+"kota": "KO-ta — city, town. 'Kota tua' is the old town.",
+"kotor": "KO-tor — a cot of dirt. Dirty.",
+"kulkas": "KOOL-kas — fridge. Dutch 'koelkast': cool cupboard.",
+"kunci": "KOON-chee — the key, like a concierge holds.",
+"kurang": "koo-RANG — the gong rang short. Not enough.",
+"lagi": "LAH-gee — a lag repeats: again.",
+"lagi-doing": "'lagi' before a verb means right now: 'lagi makan', eating.",
+"lama": "LA-ma — a llama chews for a long time.",
+"lampu": "LAHM-poo — a lamp.",
+"langsung": "LANG-soong — straight away, no stop in between.",
+"lanjut": "LAN-joot — carry on, continue.",
+"lantai": "LAHN-tie — floor. Also a storey of a building.",
+"lapar": "LA-par — hungry. Below par until you eat.",
+"lebih": "LE-bee — more. 'Lebih besar' is bigger.",
+"lemot": "LE-mot — slow, for anything electronic. From 'lemah otak'.",
+"lewat": "LE-wat — pass by, go via. Also: past the hour.",
+"libur": "LEE-boor — a day off, a holiday.",
+"licin": "LEE-cheen — slippery. Wet tiles after rain.",
+"lihat": "LEE-hat — look at that hat.",
+"lima": "LEE-ma — a lime has five segments. Also: a hand, five fingers.",
+"listrik": "LEES-trik — electric. Almost the English word.",
+"luka": "LOO-ka — a wound. Keep it dry in this climate.",
+"lupa": "LOO-pa — forget. It slipped the loop.",
+"lurus": "LOO-roos — straight as a ruler.",
+"lusa": "LOO-sa — the day after tomorrow. One word, no fuss.",
+"maaf": "ma-AHF — close to 'my fault'. Sorry.",
+"macet": "MA-chet — traffic hacked to a standstill. Jam.",
+"mahal": "ma-HAL — everything in the mall is expensive.",
+"makan": "MA-kahn — 'mac and' cheese. To eat.",
+"makanya": "MA-ka-nya — 'that is why'. Related to 'maka', thus.",
+"maklum": "MAK-loom — to understand and excuse. A kind word.",
+"malah": "MA-lah — instead, on the contrary. Turns the sentence around.",
+"malam": "MA-lahm — night. Think of a lamb asleep.",
+"mampet": "MAHM-pet — blocked, clogged. The drain has had it.",
+"mampir": "MAHM-peer — drop in for a moment.",
+"manis": "MA-nees — sweet. 'Teh manis' is sweet tea, the default.",
+"marah": "MA-rah — angry. A growl of a word.",
+"masih": "MA-see — still. 'Masih ada?' Is there still some?",
+"masuk": "MA-sook — go in. Shoes off, 'masuk'.",
+"matahari": "ma-ta-HA-ree — 'mata' eye + 'hari' day. The eye of the day: sun.",
+"mati": "MA-tee — matt, flat, dead. Switched off.",
+"mati-lampu": "'mati' dead + 'lampu' light. The power is out.",
+"matikan": "MA-tee-kan — from 'mati', dead. Make it dead: turn it off.",
+"mau": "MOW — I want to mow the lawn.",
+"mendung": "men-DOONG — overcast, about to rain.",
+"menu": "ME-noo — menu. Same word.",
+"mesin": "me-SEEN — engine, machine.",
+"mie": "mee — noodles. 'Mie goreng' is fried noodles.",
+"minggu": "MING-goo — a week of Mondays, ming-goo.",
+"minggu-hari": "MING-goo — Sunday. The same word as 'week'.",
+"minta": "MIN-ta — 'I'm in to ask': to ask for.",
+"minum": "MEE-noom — minimum one drink.",
+"misalnya": "mee-SAL-nya — for example. 'Misal' is a sample.",
+"mobil": "MO-beel — automobile. Car.",
+"motor": "MO-tor — motorbike. The default way to get around.",
+"mulai": "MOO-lie — start. 'Mulai dari' is starting from.",
+"mungkin": "MOONG-kin — a monkey might. Maybe.",
+"muntah": "MOON-tah — to vomit.",
+"murah": "MOO-rah — moo! cheap as cows.",
+"musim": "MOO-seem — season. 'Musim hujan' is the wet season.",
+"naik": "NA-eek — go up, get on. You 'naik motor'.",
+"nanti": "NAHN-tee — later, after tea.",
+"nasi": "NA-see — cooked rice. 'Nasi goreng' is fried rice.",
+"nemu": "ne-MOO — find. Everyday form of 'menemukan'.",
+"ngerti": "NGER-ti — 'ich versteh' die Nerd-Tipps': to understand.",
+"ngomong": "NGO-mong — talk, in everyday speech.",
+"nih": "nee — here, this one, handing it over.",
+"nomor": "NO-mor — number. Nearly the English word.",
+"nyala": "NYA-la — alight, burning, switched on.",
+"nyalakan": "NYA-la-kan — from 'nyala', alight. Make it burn: turn it on.",
+"nyamuk": "nya-MOOK — mosquito. The sound it makes near your ear.",
+"obat": "O-baht — medicine. The bat brings the cure.",
+"oli": "O-lee — engine oil. 'Minyak' is cooking oil.",
+"orang": "O-rang — orangutan is 'orang hutan', forest person. Person.",
+"padahal": "PA-da-hal — even though. Sets up a contradiction: I paid, and yet.",
+"pagar": "PA-gar — the gate you park the car behind.",
+"pagi": "PA-gee — morning, when the pigeon calls.",
+"pakai": "PA-kai — pack it on, wear it.",
+"paket": "PA-ket — a packet. Same word.",
+"paling": "PA-ling — the most. 'Paling enak' is the tastiest.",
+"palsu": "PAL-soo — fake. False, with an L.",
+"panas": "pa-NAHS — the pan is hot.",
+"panas-terik": "te-REEK — scorching. 'Panas terik' is blazing heat.",
+"pantai": "PAHN-tie — beach.",
+"parah": "PA-rah — severe, terrible. 'Macet parah': awful traffic.",
+"parkir": "PAR-keer — to park.",
+"pas": "pas — exact, just right. 'Uang pas' is exact change.",
+"pasar": "PA-sar — the bazaar. Market.",
+"paspor": "PAS-por — passport.",
+"pecah": "pe-CHAH — shattered. Glass, not machinery.",
+"pedas": "pe-DAHS — spicy, it burns the dash out of you.",
+"pel": "pel — mop. Short and wet.",
+"pelan": "pe-LAHN — slow, like a long plan.",
+"pembantu": "pem-BAHN-too — house helper. From 'bantu', to help.",
+"pemilik": "pe-MEE-leek — owner. From 'milik', property.",
+"penting": "PEN-ting — important. Think of the ting of a bell.",
+"penuh": "pe-NOOH — full. The opposite of kosong.",
+"perbaiki": "per-BAH-ee-kee — from 'baik', good. Make good again: fix.",
+"percaya": "per-CHA-ya — to trust, to believe.",
+"perempatan": "pe-rem-PA-tan — from 'empat', four. Four ways: a crossroads.",
+"pergi": "per-GEE — gee up, let's go.",
+"perlu": "per-LOO — you need the loo. Need TO do something.",
+"permisi": "permission — excuse me, may I pass.",
+"permisi-dulu": "'permisi' excuse me + 'dulu' first. The polite goodbye.",
+"pernah": "PER-nah — have you ever? 'Pernah ke Bali?'",
+"perpanjang": "per-PAN-jang — from 'panjang', long. Make it longer: extend.",
+"pertama": "per-TA-ma — first. From 'tama', the beginning.",
+"perut": "pe-ROOT — stomach, belly.",
+"pesan": "pe-SAHN — place an order, send a message. Both.",
+"pikir": "PEE-keer — think. Peek inside your head.",
+"pilih": "PEE-lee — choose. Pick your pile.",
+"pindah": "PIN-dah — pull the pin and move it.",
+"pinjam": "PEEN-jam — borrow. Pinch it, but give it back.",
+"pipa": "PEE-pa — pipe. Nearly the English word.",
+"pisah": "PEE-sah — separate. 'Pisah ya' splits the bill or the dish.",
+"pohon": "PO-hon — tree. A tall, slow word.",
+"pokoknya": "PO-kok-nya — the main thing is. 'Pokok' is the trunk of the tree.",
+"polisi": "po-LEE-see — police.",
+"pompa": "POM-pa — pump. Same word, softer.",
+"porsi": "POR-see — portion. 'Satu porsi' is one serving.",
+"potong": "PO-tong — cut. 'Potong rambut' is a haircut.",
+"pulang": "poo-LAHNG — the long walk home.",
+"pulsa": "POOL-sa — prepaid phone credit. You top up 'pulsa'.",
+"puluh": "POO-looh — the -ty ending. 'Dua puluh' is twenty.",
+"punya": "POON-ya — own it. 'Punya mobil?' Got a car?",
+"pusing": "POO-sing — dizzy, or a headache. Also: stressed out.",
+"ramah": "RA-mah — friendly, warm. A compliment people value.",
+"rasa": "RA-sa — feel, and taste. One word for both.",
+"ratus": "RA-toos — hundred. 'Lima ratus' is five hundred.",
+"rebus": "RE-boos — boiled.",
+"rekening": "re-KE-ning — bank account. From Dutch 'rekening'.",
+"rem": "rem — brake. From Dutch 'rem'.",
+"resmi": "RES-mee — official. Stamped and recognised.",
+"ribu": "REE-boo — a thousand ribs. Rupiah are counted in ribu.",
+"rumah": "ROO-mah — rooms make a house.",
+"rumah-sakit": "'rumah' house + 'sakit' sick. The sick house: hospital.",
+"rumput": "ROOM-poot — grass. It needs cutting again.",
+"rusak": "ROO-sak — ruined, in the sack. Broken.",
+"sabar": "SA-bar — patient. 'Sabar ya' is said often, and meant.",
+"sabtu": "SAB-too — Saturday. Sabbath, near enough.",
+"sakit": "SA-keet — sick, or it hurts. You need the first-aid kit.",
+"salah": "SA-lah — wrong. 'Salah' sounds like a sorry shrug.",
+"saluran": "sa-LOO-rahn — drain, channel. Where the water runs.",
+"sama": "SA-ma — the same. Also means 'with'.",
+"sama-sama": "'sama' same, twice: same to you. You're welcome.",
+"sambal": "SAM-bahl — the chilli sauce. Every warung has its own.",
+"sambil": "SAHM-beel — while doing. 'Sambil jalan' is while walking.",
+"sampah": "SAHM-pah — rubbish. Don't confuse with 'sampai', arrive.",
+"sampai": "SAM-pie — arrive with pie. Also means 'until'.",
+"sana": "SA-na — over there, far as Santa.",
+"santai": "SAHN-tie — relaxed, easy. The national setting.",
+"sapi": "SA-pee — cow, beef. A sappy old cow.",
+"sapu": "SA-poo — sweep, or the broom itself.",
+"satpam": "SAT-pahm — security guard. Short for 'satuan pengamanan'.",
+"satu": "SA-too — one. The app is named after it: Kata Satu, one word.",
+"sawah": "SA-wah — rice field. The flooded terraces.",
+"sayang": "SA-yang — what a shame. Also: darling.",
+"sayur": "SA-yoor — vegetable. 'Sayur' on the menu means greens.",
+"sebelah": "se-be-LAH — next to, the side. 'Sebelah kiri' is on the left.",
+"sebelum": "se-be-LOOM — before. Hear 'belum', not yet, inside it.",
+"sebenarnya": "se-be-NAR-nya — from 'benar', true. Truly, actually.",
+"sebentar": "se-ben-TAR — hang on, one tar-second.",
+"seberang": "se-be-RANG — across from. On the far side of the road.",
+"sedikit": "se-DEE-kit — just a little kit.",
+"segar": "se-GAR — fresh. A cold drink is 'segar'.",
+"segera": "se-GE-ra — promptly, soon. More urgent than 'nanti'.",
+"sejak": "se-JAK — since. 'Sejak kemarin' is since yesterday.",
+"sekali": "se-KA-lee — very, after the word. Also: once.",
+"sekarang": "se-ka-RANG — the bell rang: now.",
+"sekring": "se-KRING — fuse, breaker. From Dutch 'zekering'.",
+"selain": "se-LA-in — 'lain' is other. Other than, besides.",
+"selalu": "se-LA-loo — always. The loo is always there.",
+"selama": "se-LA-ma — 'lama' is a long time. During, for the length of.",
+"selamat-datang": "'selamat' safe + 'datang' come. Safe arrival: welcome.",
+"selesai": "se-le-SIGH — the sigh when it is finally finished.",
+"sembilan": "sem-BEE-lahn — nine.",
+"sembuh": "SEM-booh — to recover, to get better.",
+"semoga": "se-MO-ga — hopefully. 'Semoga sukses': good luck.",
+"semua": "se-MOO-a — all of them, the whole moo-herd.",
+"semut": "se-MOOT — ant. They find the sugar in minutes.",
+"senang": "se-NAHNG — happy, glad. 'Senang ketemu' is nice to meet you.",
+"sendiri": "sen-DEE-ree — on your own, by yourself.",
+"senin": "se-NEEN — Monday.",
+"sepuluh": "se-POO-looh — 'se' is one, 'puluh' is ten-lot. Ten.",
+"sering": "SE-ring — the phone often rings.",
+"serius": "SE-ree-oos — serious.",
+"servis": "SER-vees — a service, a repair job.",
+"setelah": "se-TE-lah — after. Sits before the event it follows.",
+"setengah": "se-TENG-ah — 'se' one, 'tengah' middle. One middle: half.",
+"setiap": "se-TEE-ap — every single one. 'Setiap hari' is every day.",
+"setrika": "se-TREE-ka — iron. From Dutch 'strijken'.",
+"setuju": "se-TOO-joo — to agree. 'Setuju!' is the deal is done.",
+"sewa": "SE-wa — rent. 'Sewa motor' is rent a bike.",
+"siang": "SEE-ang — midday sun, you sing.",
+"siap": "SEE-ap — ready. 'Siap!' is the cheerful yes.",
+"siapa": "see-A-pa — 'see? a pa': which person. Who.",
+"sibuk": "SEE-book — busy. Your book is full.",
+"sih": "see — a soft particle. Takes the edge off a question.",
+"silakan": "SEE-la-kan — go ahead, help yourself. The welcoming please.",
+"sim": "'SIM', said 'seem'. Driving licence.",
+"simpan": "SIM-pahn — keep, store away. Put it in the pan.",
+"sini": "SEE-ni — 'see, ni': here, where you can see it.",
+"sinyal": "SIN-yal — signal, reception. 'Nggak ada sinyal.'",
+"siram": "SEE-rahm — water the plants, or flush.",
+"soalnya": "so-AL-nya — from 'soal', the issue. The thing is… because.",
+"sopan": "SO-pahn — polite. 'Sopan santun' is good manners.",
+"sore": "SO-ray — the late afternoon, sore feet.",
+"sprei": "SPRAY — bed sheet. From Dutch 'sprei'.",
+"stnk": "'STNK', said 'es-tay-en-ka'. The vehicle registration.",
+"struk": "strook — the printed receipt. From Dutch 'strook'.",
+"sudah": "soo-DAH — 'so done'. Already finished.",
+"suka": "SOO-ka — like. 'Saya suka' is I like it.",
+"supaya": "soo-PA-ya — 'so pay attention': so that.",
+"surat": "SOO-raht — letter, document. 'Surat izin' is a permit.",
+"susah": "SOO-sah — difficult. A sigh of a word.",
+"susu": "SOO-soo — milk.",
+"tadi": "TA-dee — earlier today. 'Tadi pagi' is this morning.",
+"tahu": "TAH-hoo — 'ta-who?' You know who.",
+"takut": "TA-koot — afraid. 'Takut anjing': scared of dogs.",
+"taman": "TA-mahn — garden, park. Not 'teman', friend.",
+"tambah": "TAM-bah — add another drum to the tam-tam.",
+"tanaman": "ta-NA-mahn — plant. From 'tanam', to plant.",
+"tanda-tangan": "'tanda' sign + 'tangan' hand. The hand's mark: signature.",
+"tangan": "TA-ngan — hand, and the whole arm.",
+"tanggal": "TANG-gal — date. 'Tanggal berapa?' What's the date?",
+"tangki": "TANG-kee — tank. Water comes from one.",
+"tanpa": "TAN-pa — a tan with no pa: without.",
+"tanya": "TA-nya — ask a question.",
+"tapi": "TA-pee — 'but' is where you tap the brakes.",
+"tarik": "TA-reek — pull. Signs on doors say TARIK.",
+"tarik-tunai": "'tarik' pull + 'tunai' cash. Withdraw cash.",
+"taruh": "TA-rooh — put it down, roo.",
+"tawar": "TA-war — bargain. Haggling is a friendly war.",
+"teh": "teh — tea. Said 'teh', one beat.",
+"telat": "te-LAHT — late. Everyday word, used constantly.",
+"telur": "te-LOOR — egg. Telling you: it's an egg.",
+"teman": "te-MAHN — your man, your friend.",
+"tempat-tidur": "'tempat' place + 'tidur' sleep. The sleeping place: bed.",
+"tengah": "TENG-ah — the middle. 'Tengah malam' is midnight.",
+"tepat-waktu": "'tepat' exact + 'waktu' time. On time.",
+"terakhir": "te-RA-kheer — last. From 'akhir', the end.",
+"terima-kasih": "te-REE-ma KA-see — 'receive love'. Thank you.",
+"terlalu": "ter-LA-loo — too much. One loo too far.",
+"ternyata": "ter-NYA-ta — the reveal: it turns out.",
+"terserah": "ter-se-RAH — up to you. The verbal shrug.",
+"tetangga": "te-TAHNG-ga — neighbour. The one next door.",
+"tiba-tiba": "TEE-ba TEE-ba — 'tiba' is arrive, doubled: it arrived suddenly.",
+"tidak": "TEE-dak — 'tee? no thanks', the flat no.",
+"tidak-apa-apa": "'tidak apa-apa' — literally 'not what-what'. It's nothing, it's fine.",
+"tidur": "TEE-door — sleep. Behind the door, asleep.",
+"tiga": "TEE-ga — a tiger has three stripes on its cheek.",
+"tikus": "TEE-koos — rat or mouse. Also the computer mouse.",
+"tilang": "TEE-lang — a traffic ticket. From 'bukti pelanggaran'.",
+"tinggal": "TING-gal — to live somewhere, or what remains.",
+"toilet": "TOY-let — toilet. Also 'WC', said 'way-say'.",
+"toko": "TO-ko — a shop. Think Tokyo corner store.",
+"tolong": "'too long' — I need help, this is taking too long.",
+"total": "TO-tal — total. Same word.",
+"transfer": "TRANS-fer — bank transfer. Said the English way.",
+"tuh": "too — there, that one, pointing away.",
+"tujuh": "TOO-jooh — seven.",
+"tukang": "TOO-kang — the gang who fixes things. Tradesman.",
+"tukar": "TOO-kar — exchange. Swap the car.",
+"tunai": "TOO-nigh — cash tonight.",
+"tunda": "TOON-da — postpone. Push it back.",
+"tunggu": "TOONG-goo — stuck in goo: you wait.",
+"tunjuk": "TOON-jook — point at, show.",
+"turun": "TOO-roon — get down, get off. The rain 'turun' too.",
+"tutup": "TOO-toop — shut it, tight as a tube.",
+"tutup-pintu": "'kunci' is lock, 'pintu' is door. Lock the door.",
+"uang": "OO-ang — ka-ching. Money.",
+"ujung": "OO-joong — the end, the tip. 'Ujung jalan' is the end of the road.",
+"ulang": "OO-lang — repeat. 'Ulang tahun', repeated year, is a birthday.",
+"untung": "OON-toong — luckily. Also: profit.",
+"upacara": "oo-pa-CHA-ra — ceremony. Bali runs on them.",
+"utang": "OO-tahng — debt. What you owe.",
+"vegetarian": "ve-ge-ta-REE-an — vegetarian. Or say 'tanpa daging', without meat.",
+"visa": "VEE-sa — visa. The thing that runs out.",
+"wajar": "WA-jar — reasonable, normal, fair enough.",
+"waktu": "WAK-too — time. Also 'when' about the past.",
+"walaupun": "WA-lau-poon — although. 'Walau' + 'pun', even if.",
+"warung": "WA-roong — the small local eatery. Cheapest, best food.",
+"wastafel": "WAS-ta-fel — washbasin. From Dutch 'wastafel'.",
+"wifi": "WAI-fai — wifi. Ask: 'password wifi-nya apa?'",
+"ya": "ya — same as German 'ja'. Yes.",
+"yang-mana": "yang MA-na — 'yang' marks the one, 'mana' asks which. Which one."
+};
 // ── scheduler ────────────────────────────────────────────────────────────────
 // Pure functions. No Scriptable APIs, no I/O — so this file is unit-testable
 // under plain node (see tools/simulate.js).
@@ -1975,8 +2483,8 @@ function newWord(w) {
         '<div class="exEn">' + esc(w.exEn) + '</div>' +
       '</div>' +
       (w.note ? '<div class="card"><div class="note">' + esc(w.note) + '</div></div>' : '') +
-      (STATE.mnemonics && STATE.mnemonics[w.id]
-        ? '<div class="card"><div class="memo">' + esc(STATE.mnemonics[w.id]) + '</div></div>' : '') +
+      (hookFor(w.id)
+        ? '<div class="card"><div class="memo">' + esc(hookFor(w.id)) + '</div></div>' : '') +
       (skipped ? '<div class="meta">' + skipped + ' word' + (skipped > 1 ? 's' : '') +
                  ' parked as known</div>' : '') +
     '</div>';
@@ -2647,54 +3155,6 @@ function badges(st) {
     (b[1] ? "\u2713 " : "") + b[0] + '</span>').join("") + '</div>';
 }
 
-// Starting points for the words people most often mix up — sound-alike hooks,
-// not translations. They are only ever a suggestion: the box opens with this
-// text and you are meant to rewrite it into something that works for you.
-const MNEMONIC_SEEDS = {
-  belum:    "be-LOOM — the loom is not finished: not yet.",
-  sudah:    "soo-DAH — 'so done' already.",
-  bisa:     "BEE-sa — a bee can fly: able to.",
-  boleh:    "BO-lay — you MAY lay down here.",
-  harus:    "ha-ROOS — the rooster MUST crow at dawn.",
-  mau:      "MOW — I want to mow the lawn.",
-  tolong:   "'too long' — I need help, this is taking too long.",
-  maaf:     "sounds like 'my fault' — sorry.",
-  permisi:  "permission — excuse me, may I pass.",
-  sebentar: "se-ben-TAR — hang on, one tar-second.",
-  tunggu:   "TOONG-goo — wait, don't move.",
-  cukup:    "CHOO-koop — one cup is enough.",
-  kurang:   "koo-RANG — the gong rang short: not enough.",
-  dingin:   "DING-in — ding! the fridge door: cold.",
-  panas:    "pah-NAHS — the pan is hot.",
-  besar:    "be-SAR — a big star.",
-  kecil:    "ke-CHEEL — one small chilli.",
-  banyak:   "BAN-yak — a whole herd of yaks: many.",
-  sedikit:  "se-DEE-kit — just a little kit.",
-  murah:    "MOO-rah — moo! cheap as cows.",
-  mahal:    "ma-HAL — everything in the mall is expensive.",
-  dekat:    "de-KAT — the cat is near.",
-  jauh:     "JOW — a long 'jow' way off.",
-  makan:    "MAH-kahn — 'mac and' cheese: eat.",
-  minum:    "MEE-noom — minimum one drink.",
-  pergi:    "per-GHEE — gee up, let's go.",
-  datang:   "dah-TANG — tango over here: come.",
-  pulang:   "poo-LANG — the long walk home.",
-  beli:     "BE-lee — buy a belly-full.",
-  bayar:    "BAH-yar — pay the bar.",
-  uang:     "OO-ang — ka-ching: money.",
-  jalan:    "JAH-lahn — walk down the lane.",
-  rumah:    "ROO-mah — rooms make a house.",
-  air:      "spelled 'air', but it is water.",
-  nasi:     "NAH-see — see the rice.",
-  enak:     "eh-NAK — a tasty snack.",
-  sakit:    "SAH-kit — you need the first-aid kit.",
-  obat:     "OH-baht — the bat brings the medicine.",
-  lagi:     "LAH-gee — again, like a lag repeating.",
-  nanti:    "NAHN-tee — later, after tea.",
-  kemarin:  "ke-ma-RIN — yesterday's rain.",
-  besok:    "BAY-sok — tomorrow, put on a fresh sock."
-};
-
 // ── fx ───────────────────────────────────────────────────────────────────────
 // No particles. A correct answer is marked by the answer itself swelling and
 // the badge landing; anything thrown over the top of that is noise.
@@ -2709,6 +3169,18 @@ function flash(kind) {
   void document.body.offsetWidth;                    // restart the animation
   document.body.classList.add(kind === "miss" ? "flash-miss" : "flash-win");
   setTimeout(() => document.body.classList.remove("flash-win", "flash-miss"), 700);
+}
+
+// Every word ships with a memory hook — a sound-alike, a root, or a picture.
+// They are written to be read in a second, not admired. You can replace any of
+// them with your own from the word list; yours always wins.
+function hookFor(id) {
+  const mine = STATE.mnemonics && STATE.mnemonics[id];
+  return mine || (typeof HOOKS !== "undefined" ? HOOKS[id] : null) || null;
+}
+
+function isMyHook(id) {
+  return !!(STATE.mnemonics && STATE.mnemonics[id]);
 }
 
 // ── typed cards ──────────────────────────────────────────────────────────────
@@ -2767,7 +3239,7 @@ function markTyped(q, typed) {
 function cardScreen(q, onGrade, onNext) {
   const prompt = q.dir === "id_en" ? q.word : q.en;
   const answer = q.dir === "id_en" ? q.en : q.word;
-  const mem = STATE.mnemonics && STATE.mnemonics[q.id];
+  const mem = hookFor(q.id);
 
   stage.innerHTML =
     '<div class="screen">' +
@@ -2846,50 +3318,66 @@ function cardScreen(q, onGrade, onNext) {
 // because a mnemonic someone else wrote is just another thing to memorise.
 const MNEMONIC_AFTER = 3;
 
+// After three misses the word gets its own screen, so the hook is read rather
+// than skimmed past under a wrong answer.
 function needsMnemonic(id) {
   const c = STATE.cards[id];
   if (!c || c.known) return false;
-  if (STATE.mnemonics && STATE.mnemonics[id]) return false;
+  if (!hookFor(id)) return false;
   return (c.wrong || 0) >= MNEMONIC_AFTER;
 }
 
 function mnemonicScreen(id, onDone) {
   const v = byId(VOCAB)[id];
   const c = STATE.cards[id] || { wrong: 0 };
-  const have = (STATE.mnemonics && STATE.mnemonics[id]) || "";
-  const seed = have || MNEMONIC_SEEDS[id];
+  const hook = hookFor(id) || "";
   const slipping = (c.wrong || 0) >= MNEMONIC_AFTER;
+  let editing = false;
 
-  stage.innerHTML =
-    '<div class="screen">' +
-      '<div class="label">Eselsbr\u00fccke</div>' +
-      '<div class="ask" style="margin-top:12px">' +
-        esc(v.word) + (slipping ? " keeps slipping." : "") + '</div>' +
-      '<div class="subtitle" style="margin-top:10px">' + esc(v.word) + ' \u00b7 ' + esc(v.en) +
-        (c.wrong ? ' \u2014 missed ' + c.wrong + (c.wrong === 1 ? ' time' : ' times') : '') +
-        '. Write the hook that makes it stick.</div>' +
-      (seed ? '<div class="meta" style="margin-top:14px">Here is a starting point \u2014 ' +
-              'rewrite it into something that works for you.</div>' : '') +
-      '<input class="input" id="memo" type="text" autocomplete="off" ' +
-        'style="margin-top:14px" placeholder="Sounds like\u2026 / picture\u2026" ' +
-        'value="' + esc(seed || "") + '">' +
-    '</div>';
+  const draw = () => {
+    stage.innerHTML =
+      '<div class="screen">' +
+        '<div class="label">Memory hook</div>' +
+        '<div class="hero" style="font-size:38px; margin-top:12px">' + esc(v.word) + '</div>' +
+        '<div class="gloss">' + esc(v.en) + '</div>' +
+        (slipping
+          ? '<div class="meta" style="margin-top:10px">Missed ' + c.wrong +
+            (c.wrong === 1 ? " time" : " times") + ' so far.</div>' : '') +
+        (editing
+          ? '<input class="input" id="memo" type="text" autocomplete="off" ' +
+              'style="margin-top:20px" placeholder="Sounds like\u2026 / picture\u2026" ' +
+              'value="' + esc(hookFor(id) || "") + '">'
+          : '<div class="card" style="margin-top:20px"><div class="memo">' +
+              esc(hook) + '</div></div>' +
+            (isMyHook(id) ? '<div class="meta" style="margin-top:8px">Your own.</div>' : '')) +
+      '</div>';
 
-  act('<button class="btn btn-primary" id="savememo">Save it</button>' +
-      '<button class="btn btn-ghost btn-sm" id="skipmemo">Not now</button>');
+    act(editing
+      ? '<button class="btn btn-primary" id="savememo">Save</button>' +
+        '<button class="btn btn-ghost btn-sm" id="cancelmemo">Cancel</button>'
+      : '<button class="btn btn-primary" id="gotit">Got it</button>' +
+        '<button class="btn btn-ghost btn-sm" id="editmemo">' +
+          (isMyHook(id) ? "Edit mine" : "Write my own") + '</button>');
 
-  const input = document.getElementById("memo");
-  setTimeout(() => { try { input.focus(); } catch (e) {} }, 80);
-
-  document.getElementById("savememo").onclick = () => {
-    const text = input.value.trim();
-    STATE.mnemonics = STATE.mnemonics || {};
-    if (text) STATE.mnemonics[id] = text.slice(0, 160);
-    else delete STATE.mnemonics[id];               // cleared on purpose
-    save();
-    onDone();
+    if (editing) {
+      const input = document.getElementById("memo");
+      setTimeout(() => { try { input.focus(); } catch (e) {} }, 80);
+      document.getElementById("savememo").onclick = () => {
+        const text = input.value.trim();
+        STATE.mnemonics = STATE.mnemonics || {};
+        if (text) STATE.mnemonics[id] = text.slice(0, 160);
+        else delete STATE.mnemonics[id];          // cleared: back to the shipped hook
+        save();
+        onDone();
+      };
+      document.getElementById("cancelmemo").onclick = () => { editing = false; draw(); };
+    } else {
+      document.getElementById("gotit").onclick = onDone;
+      document.getElementById("editmemo").onclick = () => { editing = true; draw(); };
+    }
   };
-  document.getElementById("skipmemo").onclick = onDone;
+
+  draw();
 }
 
 // ── practice ─────────────────────────────────────────────────────────────────
@@ -3077,11 +3565,12 @@ function wordsScreen() {
   const line = (id, right) => {
     const v = vm[id];
     if (!v) return "";
-    const memo = STATE.mnemonics && STATE.mnemonics[id];
+    const memo = hookFor(id);
     return '<div class="wrow" data-id="' + id + '">' +
              '<div class="wword">' + esc(v.word) +
                '<small>' + esc(v.en) + '</small>' +
-               (memo ? '<em class="wmemo">' + esc(memo) + '</em>' : '') +
+               (memo ? '<em class="wmemo' + (isMyHook(id) ? " mine" : "") + '">' +
+                       esc(memo) + '</em>' : '') +
              '</div>' +
              '<div class="wmeta">' + right + '</div>' +
            '</div>';
@@ -3120,8 +3609,7 @@ function wordsScreen() {
   act('<button class="btn btn-primary" id="back">Done</button>');
   document.getElementById("back").onclick = () => { atHome = true; rebuild(); render(); };
 
-  // Tap any word to write or change its Eselsbr\u00fccke, rather than waiting
-  // for the app to decide you have missed it often enough.
+  // Tap any word to read its memory hook, or replace it with your own.
   stage.querySelectorAll(".wrow").forEach(row => row.onclick = () => {
     mnemonicScreen(row.dataset.id, wordsScreen);
   });

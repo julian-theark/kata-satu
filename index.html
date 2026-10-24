@@ -478,7 +478,7 @@ body.flash-miss #app{animation:shiver 220ms var(--ease)}
 </div>
 
 <script>
-const BUILD = "2026-10-24 04:07 UTC";
+const BUILD = "2026-10-24 04:11 UTC";
 const VOCAB = [{"id":"sudah","word":"sudah","en":"already · done","ex":"Sudah selesai?","exEn":"Is it done already?","cat":"core","diff":1,"note":"Works alone as an answer: 'Sudah' = yes, done. You'll use this daily. Said 'udah' or just 'dah' in speech.","part":"foundation"},
 {"id":"belum","word":"belum","en":"not yet","ex":"Belum, nanti sore.","exEn":"Not yet, later this afternoon.","cat":"core","diff":1,"note":"The natural answer to any 'sudah…?' question. Never use 'tidak' for this. Said 'belom' in speech, but written belum.","part":"foundation"},
 {"id":"bisa","word":"bisa","en":"can","ex":"Bisa besok?","exEn":"Can you do it tomorrow?","cat":"core","diff":1,"part":"foundation"},
@@ -2967,15 +2967,15 @@ function home() {
   const [hi, hiEn] = greeting();
   const vm = byId(VOCAB);
 
-  // The hero is the word itself, not a dashboard. Before you have met today's
-  // word it stays hidden — the app is not going to spoil its own lesson — and
-  // what shows instead is the invitation.
-  const day = STATE.days[dayKey] || {};
-  const seenId = day.newSeen ? (plan.newIds[0] || null) : null;
-  const w = seenId ? vm[seenId] : null;
+  // The hero is the word itself. It shows from the moment you open the app,
+  // before you have "started" anything — the point of the thing is that one
+  // word is in front of you, and hiding it behind a button was my idea, not a
+  // good one. The session still teaches it properly; this is the reminder.
+  const todayId = plan.newIds[0] || null;
+  const w = todayId ? vm[todayId] : null;
 
   const hero = w
-    ? '<div class="label">Today\u2019s word</div>' +
+    ? '<div class="label">' + esc(hi) + ' \u00b7 today\u2019s word</div>' +
       '<div class="hero">' + esc(w.word) + '</div>' +
       '<div class="gloss">' + esc(w.en) + '</div>' +
       '<div class="homeex">' + hl(w.ex, w.word) + '</div>' +
@@ -2983,7 +2983,8 @@ function home() {
     : '<div class="label">' + esc(hi) + '</div>' +
       '<div class="hero">' + esc(hiEn) + '</div>' +
       '<div class="gloss" style="margin-top:10px">' +
-        (left ? "A new word is waiting." : "Nothing left today.") + '</div>';
+        (left ? "Reviews waiting \u2014 no new word until they are cleared."
+              : "Nothing left today.") + '</div>';
 
   // One quiet line of facts, and a hairline that fills as the day is done.
   const facts =

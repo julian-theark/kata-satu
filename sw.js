@@ -4,7 +4,7 @@
 // and a cache-first page means a new version is invisible until the app has
 // been opened twice. Everything else (icons, the manifest) is cache-first,
 // since those rarely change and should never cost a round trip.
-const CACHE = "kata-satu-b1670b11fc58";
+const CACHE = "kata-satu-22d379d7e7a2";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest",
                "./icon/icon-192.png", "./icon/icon-512.png", "./icon/apple-touch-icon.png"];
 
@@ -24,6 +24,14 @@ function isPage(req) {
 
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
+
+  // The version file is how the page notices it is out of date. Serving it
+  // from cache would have the app comparing itself against its own stale copy
+  // and concluding, every time, that it is current.
+  if (e.request.url.indexOf("version.json") >= 0) {
+    e.respondWith(fetch(e.request, { cache: "no-store" }).catch(() => new Response("{}")));
+    return;
+  }
 
   if (isPage(e.request)) {
     // Fresh page when there is a network, the last good one when there is not.

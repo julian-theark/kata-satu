@@ -478,7 +478,7 @@ body.flash-miss #app{animation:shiver 220ms var(--ease)}
 </div>
 
 <script>
-const BUILD = "2026-10-24 04:13 UTC";
+const BUILD = "2026-10-30 13:41 UTC";
 const VOCAB = [{"id":"sudah","word":"sudah","en":"already · done","ex":"Sudah selesai?","exEn":"Is it done already?","cat":"core","diff":1,"note":"Works alone as an answer: 'Sudah' = yes, done. You'll use this daily. Said 'udah' or just 'dah' in speech.","part":"foundation"},
 {"id":"belum","word":"belum","en":"not yet","ex":"Belum, nanti sore.","exEn":"Not yet, later this afternoon.","cat":"core","diff":1,"note":"The natural answer to any 'sudah…?' question. Never use 'tidak' for this. Said 'belom' in speech, but written belum.","part":"foundation"},
 {"id":"bisa","word":"bisa","en":"can","ex":"Bisa besok?","exEn":"Can you do it tomorrow?","cat":"core","diff":1,"part":"foundation"},
@@ -2747,9 +2747,12 @@ function tile(n, suffix, label) {
 // ── first run ────────────────────────────────────────────────────────────────
 // One pass, once: tick what you can already use so the course starts where you
 // actually are instead of teaching "permisi" on day forty.
-function onboarding() {
+function onboarding(done) {
   const list = VOCAB.slice(0, 150);
+  // Words already parked start ticked, so the screen reflects what you have
+  // told it before rather than starting blank every time.
   const picked = {};
+  for (const id in STATE.cards) if (STATE.cards[id].known) picked[id] = true;
   pipsEl.innerHTML = "";
 
   const draw = () => {
@@ -2780,6 +2783,7 @@ function onboarding() {
       markKnownBulk(STATE, plan, VOCAB, dayKey, Object.keys(picked));
       STATE.onboarded = true;
       save();
+      if (done) return done();
       atHome = true; rebuild(); render();
     };
   };
@@ -3642,6 +3646,10 @@ function settings() {
       seg("Asking", "direction", [["adaptive", "Auto"], ["both", "Both"],
                                   ["id_en", "ID\u2192EN"], ["en_id", "EN\u2192ID"]]) +
 
+      '<div class="label label-quiet" style="margin-top:22px">Vocabulary</div>' +
+      '<div style="margin-top:10px"><button class="btn btn-ghost btn-sm" id="known">' +
+        'Words I already know</button></div>' +
+
       '<div class="label label-quiet" style="margin-top:22px">Storage</div>' +
       storageBlock() +
 
@@ -3683,6 +3691,9 @@ function settings() {
     // Today's plan is left alone on purpose: rebuilding it would throw away the
     // answers already recorded against it. A changed load starts tomorrow.
   });
+
+  const knownBtn = document.getElementById("known");
+  if (knownBtn) knownBtn.onclick = () => onboarding(settings);
 
   const pairBtn = document.getElementById("pair");
   if (pairBtn) pairBtn.onclick = async () => {
